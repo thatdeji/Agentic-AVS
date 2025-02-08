@@ -52,14 +52,14 @@ This project is an agent built for the Agentic Hackathon under EigenLayer AVS. T
 
 Using npm:
 
-```npm install
-
+```
+npm install
 ```
 
 Or using Yarn:
 
-```yarn install
-
+```
+yarn install
 ```
 
 ## Usage
