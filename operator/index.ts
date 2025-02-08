@@ -188,7 +188,8 @@ const signAndRespondToTask = async (
   const tx = await analysisServiceManager.respondToTask(
     { walletAdress: walletAdress, taskCreatedBlock: taskCreatedBlock },
     taskIndex,
-    signedTask
+    signedTask,
+    analysisMarkdown
   );
   await tx.wait();
   console.log(`Responded to task.`);
