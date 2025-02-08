@@ -111,7 +111,7 @@ npm run start:operator
 
 ## Create and Claim Payments
 
-### In a terminal, start a new instance of anvil and deploy the core and avs contracts
+In a terminal, start a new instance of anvil and deploy the core and avs contracts
 
 ```
 # Start anvil
@@ -127,7 +127,7 @@ npm run deploy:core
 npm run deploy:analysis
 ```
 
-### In another terminal, run:
+In another terminal, run:
 
 ```
 # Create payment roots
@@ -139,7 +139,7 @@ npm run create-payments-root
 npm run claim-payments
 ```
 
-### To run operator directed payments, run:
+To run operator directed payments, run:
 
 ```
 #Create payment roots
@@ -150,11 +150,11 @@ npm run create-operator-directed-payments-root
 npm run claim-payments
 ```
 
-## In order to create and claim multiple payments (run the above two commands more than once), you must wait up to 5 minutes.
+In order to create and claim multiple payments (run the above two commands more than once), you must wait up to 5 minutes.
 
 ## Create the Analysis Tasks
 
-## Open a separate terminal window #3, execute the following commands
+Open a separate terminal window #3, execute the following commands
 
 ```
 # Start the createNewTasks application
