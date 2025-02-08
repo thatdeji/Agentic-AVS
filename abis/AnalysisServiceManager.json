@@ -394,6 +394,11 @@
         "name": "signature",
         "type": "bytes",
         "internalType": "bytes"
+      },
+      {
+        "name": "mdReport",
+        "type": "string",
+        "internalType": "string"
       }
     ],
     "outputs": [],
@@ -592,6 +597,12 @@
         "type": "address",
         "indexed": false,
         "internalType": "address"
+      },
+      {
+        "name": "mdReport",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
       }
     ],
     "anonymous": false
