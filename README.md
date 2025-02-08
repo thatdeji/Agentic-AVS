@@ -150,11 +150,11 @@ npm run create-operator-directed-payments-root
 npm run claim-payments
 ```
 
-# In order to create and claim multiple payments (run the above two commands more than once), you must wait up to 5 minutes.
+## In order to create and claim multiple payments (run the above two commands more than once), you must wait up to 5 minutes.
 
-# Create the Analysis Tasks
+## Create the Analysis Tasks
 
-### Open a separate terminal window #3, execute the following commands
+## Open a separate terminal window #3, execute the following commands
 
 ```
 # Start the createNewTasks application
