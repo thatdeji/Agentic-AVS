@@ -71,9 +71,6 @@ yarn install
 ### In terminal window #1, execute the following commands:
 
 ```
-# Install npm packages
-npm install
-
 # Start local anvil chain
 npm run start:anvil
 ```
