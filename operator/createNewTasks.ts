@@ -34,16 +34,6 @@ const analysisServiceManager = new ethers.Contract(
   wallet
 );
 
-// Function to generate random names
-// function generateRandomName(): string {
-//   const adjectives = ["Quick", "Lazy", "Sleepy", "Noisy", "Hungry"];
-//   const nouns = ["Fox", "Dog", "Cat", "Mouse", "Bear"];
-//   const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-//   const noun = nouns[Math.floor(Math.random() * nouns.length)];
-//   const randomName = `${adjective}${noun}${Math.floor(Math.random() * 1000)}`;
-//   return randomName;
-// }
-
 async function createNewTask(taskName: string) {
   try {
     // Send a transaction to the createNewTask function
@@ -58,14 +48,8 @@ async function createNewTask(taskName: string) {
   }
 }
 
-// Function to create a new task with a random name every 15 seconds
+// Function to create a new task with a random wallet address to get analysis
 function startCreatingTasks() {
-  // setInterval(() => {
-  //   const randomName = generateRandomName();
-  //   console.log(`Creating new task with name: ${randomName}`);
-  //   createNewTask(randomName);
-  // }, 24000);
-
   createNewTask("0x4552cBC00e49f8b4fDE477145557E2818Fe40F6b");
 }
 

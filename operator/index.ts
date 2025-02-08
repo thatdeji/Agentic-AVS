@@ -167,9 +167,7 @@ const signAndRespondToTask = async (
 
   const analysisMarkdown = await analyzeTransactions(history);
 
-  console.log(
-    `Signing and responding to task ${taskIndex} Analysis: ${analysisMarkdown}`
-  );
+  console.log(`Signing and responding to task ${taskIndex}`);
 
   // Write the markdown output to a file
   writeMarkdownReport(analysisMarkdown);
@@ -255,9 +253,6 @@ const registerOperator = async () => {
 };
 
 const monitorNewTasks = async () => {
-  //console.log(`Creating new task "EigenWorld"`);
-  //await analysisServiceManager.createNewTask("EigenWorld");
-
   analysisServiceManager.on(
     "NewTaskCreated",
     async (taskIndex: number, task: any) => {
