@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 interface IAnalysisServiceManager {
     event NewTaskCreated(uint32 indexed taskIndex, Task task);
 
-    event TaskResponded(uint32 indexed taskIndex, Task task, address operator);
+    event TaskResponded(uint32 indexed taskIndex, Task task, address operator, string mdReport);
 
     struct Task {
         string walletAdress;
@@ -29,6 +29,7 @@ interface IAnalysisServiceManager {
     function respondToTask(
         Task calldata task,
         uint32 referenceTaskIndex,
-        bytes calldata signature
+        bytes calldata signature,
+        string calldata mdReport
     ) external;
 }

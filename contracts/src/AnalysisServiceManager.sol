@@ -82,7 +82,8 @@ contract AnalysisServiceManager is ECDSAServiceManagerBase, IAnalysisServiceMana
     function respondToTask(
         Task calldata task,
         uint32 referenceTaskIndex,
-        bytes memory signature
+        bytes memory signature,
+        string calldata mdReport
     ) external {
         // check that the task is valid, hasn't been responsed yet, and is being responded in time
         require(
@@ -106,7 +107,7 @@ contract AnalysisServiceManager is ECDSAServiceManagerBase, IAnalysisServiceMana
         allTaskResponses[msg.sender][referenceTaskIndex] = signature;
 
         // emitting event
-        emit TaskResponded(referenceTaskIndex, task, msg.sender);
+        emit TaskResponded(referenceTaskIndex, task, msg.sender, mdReport);
     }
 
 }

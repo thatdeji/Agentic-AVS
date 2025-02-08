@@ -258,7 +258,8 @@ contract AnalysisTaskManagerSetup is Test {
     function respondToTask(
         Operator memory operator,
         IAnalysisServiceManager.Task memory task,
-        uint32 referenceTaskIndex
+        uint32 referenceTaskIndex,
+    string memory mdReport
     ) internal {
         // Create the message hash
         bytes32 messageHash = keccak256(abi.encodePacked("Hello, ", task.walletAdress));
@@ -273,7 +274,7 @@ contract AnalysisTaskManagerSetup is Test {
         bytes memory signedTask = abi.encode(operators, signatures, uint32(block.number));
 
         IAnalysisServiceManager(AnalysisDeployment.analysisServiceManager).respondToTask(
-            task, referenceTaskIndex, signedTask
+            task, referenceTaskIndex, signedTask, mdReport
         );
     }
 }
@@ -439,7 +440,15 @@ contract RespondToTask is AnalysisTaskManagerSetup {
 
         bytes memory signedTask = abi.encode(operatorsMem, signatures, uint32(block.number));
 
+        string memory mdReport = "# Analysis Report\n\n" 
+    "This is a test markdown analysis report generated on-chain.\n\n"
+    "- **Insight 1:** Transaction patterns look regular.\n"
+    "- **Insight 2:** No suspicious activities detected.\n"
+    "- **Insight 3:** High-value transactions are within expected ranges.\n\n"
+    "*Playful Roast:* You're a 'big investor, low spender' - your wallet is so quiet, even the blockchain yawns!";
+
+
         vm.roll(block.number+1);
-        sm.respondToTask(newTask, taskIndex, signedTask);
+        sm.respondToTask(newTask, taskIndex, signedTask, mdReport);
     }
 }
