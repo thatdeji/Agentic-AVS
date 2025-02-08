@@ -9,7 +9,7 @@ CHALLENGER_ECDSA_PRIV_KEY=0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9
 
 CHAINID=31337
 # Make sure to update this if the strategy address changes
-# check in contracts/script/output/${CHAINID}/hello_world_avs_deployment_output.json
+# check in contracts/script/output/${CHAINID}/analysis_avs_deployment_output.json
 STRATEGY_ADDRESS=0x7a2088a1bFc9d81c55368AE168C2C02570cB814F
 DEPLOYMENT_FILES_DIR=contracts/script/output/${CHAINID}
 
@@ -25,9 +25,9 @@ deploy-eigenlayer-contracts:
 						@chmod +x ./contracts/anvil/deploy-el.sh
 						./contracts/anvil/deploy-el.sh
 
-deploy-helloworld-contracts:
-						@chmod +x ./contracts/anvil/deploy-helloworld.sh
-						./contracts/anvil/deploy-helloworld.sh
+deploy-analysis-contracts:
+						@chmod +x ./contracts/anvil/deploy-analysis.sh
+						./contracts/anvil/deploy-analysis.sh
 
 __CLI__: ##
 

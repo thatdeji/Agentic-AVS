@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.12;
 
-import {HelloWorldServiceManager} from "../src/HelloWorldServiceManager.sol";
+import {AnalysisServiceManager} from "../src/AnalysisServiceManager.sol";
 import {MockAVSDeployer} from "@eigenlayer-middleware/test/utils/MockAVSDeployer.sol";
 import {ECDSAStakeRegistry} from "@eigenlayer-middleware/src/unaudited/ECDSAStakeRegistry.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {console2} from "forge-std/Test.sol";
-import {HelloWorldDeploymentLib} from "../script/utils/HelloWorldDeploymentLib.sol";
+import {AnalysisDeploymentLib} from "../script/utils/AnalysisDeploymentLib.sol";
 import {CoreDeploymentLib} from "../script/utils/CoreDeploymentLib.sol";
 import {UpgradeableProxyLib} from "../script/utils/UpgradeableProxyLib.sol";
 import {ERC20Mock} from "./ERC20Mock.sol";
@@ -23,11 +23,11 @@ import {ISignatureUtils} from "@eigenlayer/contracts/interfaces/ISignatureUtils.
 import {AVSDirectory} from "@eigenlayer/contracts/core/AVSDirectory.sol";
 import {IAVSDirectory} from "@eigenlayer/contracts/interfaces/IAVSDirectory.sol";
 import {Test, console2 as console} from "forge-std/Test.sol";
-import {IHelloWorldServiceManager} from "../src/IHelloWorldServiceManager.sol";
+import {IAnalysisServiceManager} from "../src/IAnalysisServiceManager.sol";
 import {ECDSAUpgradeable} from
     "@openzeppelin-upgrades/contracts/utils/cryptography/ECDSAUpgradeable.sol";
 
-contract HelloWorldTaskManagerSetup is Test {
+contract AnalysisTaskManagerSetup is Test {
     Quorum internal quorum;
 
     struct Operator {
@@ -47,7 +47,7 @@ contract HelloWorldTaskManagerSetup is Test {
     TrafficGenerator internal generator;
     AVSOwner internal owner;
 
-    HelloWorldDeploymentLib.DeploymentData internal helloWorldDeployment;
+    AnalysisDeploymentLib.DeploymentData internal AnalysisDeployment;
     CoreDeploymentLib.DeploymentData internal coreDeployment;
     CoreDeploymentLib.DeploymentConfigData coreConfigData;
 
@@ -70,9 +70,9 @@ contract HelloWorldTaskManagerSetup is Test {
         IStrategy strategy = addStrategy(address(mockToken));
         quorum.strategies.push(StrategyParams({strategy: strategy, multiplier: 10_000}));
 
-        helloWorldDeployment =
-            HelloWorldDeploymentLib.deployContracts(proxyAdmin, coreDeployment, quorum, owner.key.addr, owner.key.addr);
-        labelContracts(coreDeployment, helloWorldDeployment);
+        AnalysisDeployment =
+            AnalysisDeploymentLib.deployContracts(proxyAdmin, coreDeployment, quorum, owner.key.addr, owner.key.addr);
+        labelContracts(coreDeployment, AnalysisDeployment);
     }
 
     function addStrategy(
@@ -90,7 +90,7 @@ contract HelloWorldTaskManagerSetup is Test {
 
     function labelContracts(
         CoreDeploymentLib.DeploymentData memory coreDeployment,
-        HelloWorldDeploymentLib.DeploymentData memory helloWorldDeployment
+        AnalysisDeploymentLib.DeploymentData memory AnalysisDeployment
     ) internal {
         vm.label(coreDeployment.delegationManager, "DelegationManager");
         vm.label(coreDeployment.avsDirectory, "AVSDirectory");
@@ -101,8 +101,8 @@ contract HelloWorldTaskManagerSetup is Test {
         vm.label(coreDeployment.pauserRegistry, "PauserRegistry");
         vm.label(coreDeployment.strategyFactory, "StrategyFactory");
         vm.label(coreDeployment.strategyBeacon, "StrategyBeacon");
-        vm.label(helloWorldDeployment.helloWorldServiceManager, "HelloWorldServiceManager");
-        vm.label(helloWorldDeployment.stakeRegistry, "StakeRegistry");
+        vm.label(AnalysisDeployment.analysisServiceManager, "AnalysisServiceManager");
+        vm.label(AnalysisDeployment.stakeRegistry, "StakeRegistry");
     }
 
     function signWithOperatorKey(
@@ -161,7 +161,7 @@ contract HelloWorldTaskManagerSetup is Test {
     function registerOperatorToAVS(
         Operator memory operator
     ) internal {
-        ECDSAStakeRegistry stakeRegistry = ECDSAStakeRegistry(helloWorldDeployment.stakeRegistry);
+        ECDSAStakeRegistry stakeRegistry = ECDSAStakeRegistry(AnalysisDeployment.stakeRegistry);
         AVSDirectory avsDirectory = AVSDirectory(coreDeployment.avsDirectory);
 
         bytes32 salt = keccak256(abi.encodePacked(block.timestamp, operator.key.addr));
@@ -169,7 +169,7 @@ contract HelloWorldTaskManagerSetup is Test {
 
         bytes32 operatorRegistrationDigestHash = avsDirectory
             .calculateOperatorAVSRegistrationDigestHash(
-            operator.key.addr, address(helloWorldDeployment.helloWorldServiceManager), salt, expiry
+            operator.key.addr, address(AnalysisDeployment.analysisServiceManager), salt, expiry
         );
 
         bytes memory signature = signWithOperatorKey(operator, operatorRegistrationDigestHash);
@@ -184,7 +184,7 @@ contract HelloWorldTaskManagerSetup is Test {
     function deregisterOperatorFromAVS(
         Operator memory operator
     ) internal {
-        ECDSAStakeRegistry stakeRegistry = ECDSAStakeRegistry(helloWorldDeployment.stakeRegistry);
+        ECDSAStakeRegistry stakeRegistry = ECDSAStakeRegistry(AnalysisDeployment.stakeRegistry);
 
         vm.prank(operator.key.addr);
         stakeRegistry.deregisterOperator();
@@ -205,7 +205,7 @@ contract HelloWorldTaskManagerSetup is Test {
     function updateOperatorWeights(
         Operator[] memory _operators
     ) internal {
-        ECDSAStakeRegistry stakeRegistry = ECDSAStakeRegistry(helloWorldDeployment.stakeRegistry);
+        ECDSAStakeRegistry stakeRegistry = ECDSAStakeRegistry(AnalysisDeployment.stakeRegistry);
 
         address[] memory operatorAddresses = new address[](_operators.length);
         for (uint256 i = 0; i < _operators.length; i++) {
@@ -247,21 +247,21 @@ contract HelloWorldTaskManagerSetup is Test {
         return signatures;
     }
 
-    function createTask(TrafficGenerator memory generator, string memory taskName) internal {
-        IHelloWorldServiceManager helloWorldServiceManager =
-            IHelloWorldServiceManager(helloWorldDeployment.helloWorldServiceManager);
+    function createTask(TrafficGenerator memory generator, string memory taskAddress) internal {
+        IAnalysisServiceManager AnalysisServiceManager =
+            IAnalysisServiceManager(AnalysisDeployment.analysisServiceManager);
 
         vm.prank(generator.key.addr);
-        helloWorldServiceManager.createNewTask(taskName);
+        AnalysisServiceManager.createNewTask(taskAddress);
     }
 
     function respondToTask(
         Operator memory operator,
-        IHelloWorldServiceManager.Task memory task,
+        IAnalysisServiceManager.Task memory task,
         uint32 referenceTaskIndex
     ) internal {
         // Create the message hash
-        bytes32 messageHash = keccak256(abi.encodePacked("Hello, ", task.name));
+        bytes32 messageHash = keccak256(abi.encodePacked("Hello, ", task.walletAdress));
 
         bytes memory signature = signWithSigningKey(operator, messageHash);
 
@@ -272,15 +272,15 @@ contract HelloWorldTaskManagerSetup is Test {
 
         bytes memory signedTask = abi.encode(operators, signatures, uint32(block.number));
 
-        IHelloWorldServiceManager(helloWorldDeployment.helloWorldServiceManager).respondToTask(
+        IAnalysisServiceManager(AnalysisDeployment.analysisServiceManager).respondToTask(
             task, referenceTaskIndex, signedTask
         );
     }
 }
 
-contract HelloWorldServiceManagerInitialization is HelloWorldTaskManagerSetup {
+contract AnalysisServiceManagerInitialization is AnalysisTaskManagerSetup {
     function testInitialization() public view {
-        ECDSAStakeRegistry stakeRegistry = ECDSAStakeRegistry(helloWorldDeployment.stakeRegistry);
+        ECDSAStakeRegistry stakeRegistry = ECDSAStakeRegistry(AnalysisDeployment.stakeRegistry);
 
         Quorum memory quorum = stakeRegistry.quorum();
 
@@ -291,10 +291,10 @@ contract HelloWorldServiceManagerInitialization is HelloWorldTaskManagerSetup {
             "First strategy doesn't match mock token strategy"
         );
 
-        assertTrue(helloWorldDeployment.stakeRegistry != address(0), "StakeRegistry not deployed");
+        assertTrue(AnalysisDeployment.stakeRegistry != address(0), "StakeRegistry not deployed");
         assertTrue(
-            helloWorldDeployment.helloWorldServiceManager != address(0),
-            "HelloWorldServiceManager not deployed"
+            AnalysisDeployment.analysisServiceManager != address(0),
+            "AnalysisServiceManager not deployed"
         );
         assertTrue(coreDeployment.delegationManager != address(0), "DelegationManager not deployed");
         assertTrue(coreDeployment.avsDirectory != address(0), "AVSDirectory not deployed");
@@ -305,14 +305,14 @@ contract HelloWorldServiceManagerInitialization is HelloWorldTaskManagerSetup {
     }
 }
 
-contract RegisterOperator is HelloWorldTaskManagerSetup {
+contract RegisterOperator is AnalysisTaskManagerSetup {
     uint256 internal constant INITIAL_BALANCE = 100 ether;
     uint256 internal constant DEPOSIT_AMOUNT = 1 ether;
     uint256 internal constant OPERATOR_COUNT = 4;
 
     IDelegationManager internal delegationManager;
     AVSDirectory internal avsDirectory;
-    IHelloWorldServiceManager internal sm;
+    IAnalysisServiceManager internal sm;
     ECDSAStakeRegistry internal stakeRegistry;
 
     function setUp() public virtual override {
@@ -320,8 +320,8 @@ contract RegisterOperator is HelloWorldTaskManagerSetup {
         /// Setting to internal state for convenience
         delegationManager = IDelegationManager(coreDeployment.delegationManager);
         avsDirectory = AVSDirectory(coreDeployment.avsDirectory);
-        sm = IHelloWorldServiceManager(helloWorldDeployment.helloWorldServiceManager);
-        stakeRegistry = ECDSAStakeRegistry(helloWorldDeployment.stakeRegistry);
+        sm = IAnalysisServiceManager(AnalysisDeployment.analysisServiceManager);
+        stakeRegistry = ECDSAStakeRegistry(AnalysisDeployment.stakeRegistry);
 
         addStrategy(address(mockToken));
 
@@ -367,26 +367,26 @@ contract RegisterOperator is HelloWorldTaskManagerSetup {
     }
 }
 
-contract CreateTask is HelloWorldTaskManagerSetup {
-    IHelloWorldServiceManager internal sm;
+contract CreateTask is AnalysisTaskManagerSetup {
+    IAnalysisServiceManager internal sm;
 
     function setUp() public override {
         super.setUp();
-        sm = IHelloWorldServiceManager(helloWorldDeployment.helloWorldServiceManager);
+        sm = IAnalysisServiceManager(AnalysisDeployment.analysisServiceManager);
     }
 
     function testCreateTask() public {
-        string memory taskName = "Test Task";
+        string memory taskAddress = "Test Task";
 
         vm.prank(generator.key.addr);
-        IHelloWorldServiceManager.Task memory newTask = sm.createNewTask(taskName);
+        IAnalysisServiceManager.Task memory newTask = sm.createNewTask(taskAddress);
 
-        require(sha256(abi.encodePacked(newTask.name)) == sha256(abi.encodePacked(taskName)), "Task name not set correctly");
+        require(sha256(abi.encodePacked(newTask.walletAdress)) == sha256(abi.encodePacked(taskAddress)), "Task walletAdress not set correctly");
         require(newTask.taskCreatedBlock == uint32(block.number), "Task created block not set correctly");
     }
 }
 
-contract RespondToTask is HelloWorldTaskManagerSetup {
+contract RespondToTask is AnalysisTaskManagerSetup {
     using ECDSAUpgradeable for bytes32;
 
     uint256 internal constant INITIAL_BALANCE = 100 ether;
@@ -395,7 +395,7 @@ contract RespondToTask is HelloWorldTaskManagerSetup {
 
     IDelegationManager internal delegationManager;
     AVSDirectory internal avsDirectory;
-    IHelloWorldServiceManager internal sm;
+    IAnalysisServiceManager internal sm;
     ECDSAStakeRegistry internal stakeRegistry;
 
     function setUp() public override {
@@ -403,8 +403,8 @@ contract RespondToTask is HelloWorldTaskManagerSetup {
 
         delegationManager = IDelegationManager(coreDeployment.delegationManager);
         avsDirectory = AVSDirectory(coreDeployment.avsDirectory);
-        sm = IHelloWorldServiceManager(helloWorldDeployment.helloWorldServiceManager);
-        stakeRegistry = ECDSAStakeRegistry(helloWorldDeployment.stakeRegistry);
+        sm = IAnalysisServiceManager(AnalysisDeployment.analysisServiceManager);
+        stakeRegistry = ECDSAStakeRegistry(AnalysisDeployment.stakeRegistry);
 
         addStrategy(address(mockToken));
 
@@ -424,11 +424,11 @@ contract RespondToTask is HelloWorldTaskManagerSetup {
     }
 
     function testRespondToTask() public {
-        string memory taskName = "TestTask";
-        IHelloWorldServiceManager.Task memory newTask = sm.createNewTask(taskName);
+        string memory taskAddress = "TestTask";
+        IAnalysisServiceManager.Task memory newTask = sm.createNewTask(taskAddress);
         uint32 taskIndex = sm.latestTaskNum() - 1;
 
-        bytes32 messageHash = keccak256(abi.encodePacked("Hello, ", taskName));
+        bytes32 messageHash = keccak256(abi.encodePacked("Hello, ", taskAddress));
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
         bytes memory signature = signWithSigningKey(operators[0], ethSignedMessageHash); // TODO: Use signing key after changes to service manager
 

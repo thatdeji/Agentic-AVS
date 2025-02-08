@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {Script} from "forge-std/Script.sol";
 import {console2} from "forge-std/Test.sol";
-import {HelloWorldDeploymentLib} from "./utils/HelloWorldDeploymentLib.sol";
+import {AnalysisDeploymentLib} from "./utils/AnalysisDeploymentLib.sol";
 import {CoreDeploymentLib} from "./utils/CoreDeploymentLib.sol";
 import {UpgradeableProxyLib} from "./utils/UpgradeableProxyLib.sol";
 import {StrategyBase} from "@eigenlayer/contracts/strategies/StrategyBase.sol";
@@ -24,7 +24,7 @@ import {
 
 import "forge-std/Test.sol";
 
-contract HelloWorldDeployer is Script, Test {
+contract AnalysisDeployer is Script, Test {
     using CoreDeploymentLib for *;
     using UpgradeableProxyLib for address;
 
@@ -32,17 +32,17 @@ contract HelloWorldDeployer is Script, Test {
     address proxyAdmin;
     address rewardsOwner;
     address rewardsInitiator;
-    IStrategy helloWorldStrategy;
+    IStrategy AnalysisStrategy;
     CoreDeploymentLib.DeploymentData coreDeployment;
-    HelloWorldDeploymentLib.DeploymentData helloWorldDeployment;
-    HelloWorldDeploymentLib.DeploymentConfigData helloWorldConfig;
+    AnalysisDeploymentLib.DeploymentData analysisDeployment;
+    AnalysisDeploymentLib.DeploymentConfigData analysisConfig;
     Quorum internal quorum;
     ERC20Mock token;
     function setUp() public virtual {
         deployer = vm.rememberKey(vm.envUint("PRIVATE_KEY"));
         vm.label(deployer, "Deployer");
 
-        helloWorldConfig = HelloWorldDeploymentLib.readDeploymentConfigValues("config/hello-world/", block.chainid);
+        analysisConfig = AnalysisDeploymentLib.readDeploymentConfigValues("config/analysis/", block.chainid);
 
 
         coreDeployment = CoreDeploymentLib.readDeploymentJson("deployments/core/", block.chainid);
@@ -50,41 +50,41 @@ contract HelloWorldDeployer is Script, Test {
 
     function run() external {
         vm.startBroadcast(deployer);
-        rewardsOwner = helloWorldConfig.rewardsOwner;
-        rewardsInitiator = helloWorldConfig.rewardsInitiator;
+        rewardsOwner = analysisConfig.rewardsOwner;
+        rewardsInitiator = analysisConfig.rewardsInitiator;
 
         token = new ERC20Mock();
-        helloWorldStrategy = IStrategy(StrategyFactory(coreDeployment.strategyFactory).deployNewStrategy(token));
+        AnalysisStrategy = IStrategy(StrategyFactory(coreDeployment.strategyFactory).deployNewStrategy(token));
 
 
         quorum.strategies.push(
-            StrategyParams({strategy: helloWorldStrategy, multiplier: 10_000})
+            StrategyParams({strategy: AnalysisStrategy, multiplier: 10_000})
         );
 
 
         proxyAdmin = UpgradeableProxyLib.deployProxyAdmin();
 
 
-        helloWorldDeployment =
-            HelloWorldDeploymentLib.deployContracts(proxyAdmin, coreDeployment, quorum, rewardsInitiator, rewardsOwner);
+        analysisDeployment =
+            AnalysisDeploymentLib.deployContracts(proxyAdmin, coreDeployment, quorum, rewardsInitiator, rewardsOwner);
 
-        helloWorldDeployment.strategy = address(helloWorldStrategy);
-        helloWorldDeployment.token = address(token);
+        analysisDeployment.strategy = address(AnalysisStrategy);
+        analysisDeployment.token = address(token);
 
         vm.stopBroadcast();
         verifyDeployment();
-        HelloWorldDeploymentLib.writeDeploymentJson(helloWorldDeployment);
+        AnalysisDeploymentLib.writeDeploymentJson(analysisDeployment);
     }
 
     function verifyDeployment() internal view {
         require(
-            helloWorldDeployment.stakeRegistry != address(0), "StakeRegistry address cannot be zero"
+            analysisDeployment.stakeRegistry != address(0), "StakeRegistry address cannot be zero"
         );
         require(
-            helloWorldDeployment.helloWorldServiceManager != address(0),
-            "HelloWorldServiceManager address cannot be zero"
+            analysisDeployment.analysisServiceManager != address(0),
+            "AnalysisServiceManager address cannot be zero"
         );
-        require(helloWorldDeployment.strategy != address(0), "Strategy address cannot be zero");
+        require(analysisDeployment.strategy != address(0), "Strategy address cannot be zero");
         require(proxyAdmin != address(0), "ProxyAdmin address cannot be zero");
         require(
             coreDeployment.delegationManager != address(0),

@@ -4,15 +4,15 @@ pragma solidity ^0.8.0;
 import "forge-std/Test.sol";
 import "../script/utils/SetupPaymentsLib.sol";
 import "../script/utils/CoreDeploymentLib.sol";
-import "../script/utils/HelloWorldDeploymentLib.sol";
+import "../script/utils/AnalysisDeploymentLib.sol";
 import "@eigenlayer/contracts/interfaces/IRewardsCoordinator.sol";
-import "../src/IHelloWorldServiceManager.sol";
+import "../src/IAnalysisServiceManager.sol";
 import "@eigenlayer/contracts/interfaces/IStrategy.sol";
 import "@eigenlayer/contracts/libraries/Merkle.sol";
 import "../script/DeployEigenLayerCore.s.sol";
-import "../script/HelloWorldDeployer.s.sol";
+import "../script/AnalysisDeployer.s.sol";
 import {StrategyFactory} from "@eigenlayer/contracts/strategies/StrategyFactory.sol";
-import {HelloWorldTaskManagerSetup} from "test/HelloWorldServiceManager.t.sol";
+import {AnalysisTaskManagerSetup} from "test/AnalysisServiceManager.t.sol";
 import {ECDSAServiceManagerBase} from "@eigenlayer-middleware/src/unaudited/ECDSAServiceManagerBase.sol";
 import {
     Quorum,
@@ -33,13 +33,13 @@ contract TestConstants {
     uint256 NUM_EARNERS = 4;
 }
 
-contract SetupPaymentsLibTest is Test, TestConstants, HelloWorldTaskManagerSetup {
+contract SetupPaymentsLibTest is Test, TestConstants, AnalysisTaskManagerSetup {
     using SetupPaymentsLib for *;
     Vm cheats = Vm(VM_ADDRESS);
 
 
     IRewardsCoordinator public rewardsCoordinator;
-    IHelloWorldServiceManager public helloWorldServiceManager;
+    IAnalysisServiceManager public AnalysisServiceManager;
     IStrategy public strategy;
     address proxyAdmin;
 
@@ -59,13 +59,13 @@ contract SetupPaymentsLibTest is Test, TestConstants, HelloWorldTaskManagerSetup
         strategy = addStrategy(address(mockToken)); // Similar function to HW_SM test using strategy factory
         quorum.strategies.push(StrategyParams({strategy: strategy, multiplier: 10_000}));
 
-        helloWorldDeployment =
-            HelloWorldDeploymentLib.deployContracts(proxyAdmin, coreDeployment, quorum, rewardsInitiator, rewardsOwner);
-        labelContracts(coreDeployment, helloWorldDeployment);
+        AnalysisDeployment =
+            AnalysisDeploymentLib.deployContracts(proxyAdmin, coreDeployment, quorum, rewardsInitiator, rewardsOwner);
+        labelContracts(coreDeployment, AnalysisDeployment);
 
 
         cheats.prank(rewardsOwner);
-        ECDSAServiceManagerBase(helloWorldDeployment.helloWorldServiceManager).setRewardsInitiator(rewardsInitiator);
+        ECDSAServiceManagerBase(AnalysisDeployment.analysisServiceManager).setRewardsInitiator(rewardsInitiator);
 
         rewardsCoordinator = IRewardsCoordinator(coreDeployment.rewardsCoordinator);
 
@@ -189,11 +189,11 @@ contract SetupPaymentsLibTest is Test, TestConstants, HelloWorldTaskManagerSetup
         cheats.warp(startTimestamp + 1);
         
         cheats.prank(rewardsInitiator);
-        mockToken.increaseAllowance(helloWorldDeployment.helloWorldServiceManager, amountPerPayment * numPayments);
+        mockToken.increaseAllowance(AnalysisDeployment.analysisServiceManager, amountPerPayment * numPayments);
 
         cheats.startPrank(rewardsInitiator);
         SetupPaymentsLib.createAVSRewardsSubmissions(
-            address(helloWorldDeployment.helloWorldServiceManager),
+            address(AnalysisDeployment.analysisServiceManager),
             address(strategy),
             numPayments,
             amountPerPayment,

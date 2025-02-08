@@ -8,16 +8,16 @@ import {IServiceManager} from "@eigenlayer-middleware/src/interfaces/IServiceMan
 import {ECDSAUpgradeable} from
     "@openzeppelin-upgrades/contracts/utils/cryptography/ECDSAUpgradeable.sol";
 import {IERC1271Upgradeable} from "@openzeppelin-upgrades/contracts/interfaces/IERC1271Upgradeable.sol";
-import {IHelloWorldServiceManager} from "./IHelloWorldServiceManager.sol";
+import {IAnalysisServiceManager} from "./IAnalysisServiceManager.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@eigenlayer/contracts/interfaces/IRewardsCoordinator.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 /**
- * @title Primary entrypoint for procuring services from HelloWorld.
+ * @title Primary entrypoint for procuring services from Analysis.
  * @author Eigen Labs, Inc.
  */
-contract HelloWorldServiceManager is ECDSAServiceManagerBase, IHelloWorldServiceManager {
+contract AnalysisServiceManager is ECDSAServiceManagerBase, IAnalysisServiceManager {
     using ECDSAUpgradeable for bytes32;
 
     uint32 public latestTaskNum;
@@ -64,11 +64,11 @@ contract HelloWorldServiceManager is ECDSAServiceManagerBase, IHelloWorldService
     /* FUNCTIONS */
     // NOTE: this function creates new task, assigns it a taskId
     function createNewTask(
-        string memory name
+        string memory walletAdress
     ) external returns (Task memory) {
         // create a new task struct
         Task memory newTask;
-        newTask.name = name;
+        newTask.walletAdress = walletAdress;
         newTask.taskCreatedBlock = uint32(block.number);
 
         // store hash of task onchain, emit event, and increase taskNum
@@ -95,7 +95,7 @@ contract HelloWorldServiceManager is ECDSAServiceManagerBase, IHelloWorldService
         );
 
         // The message that was signed
-        bytes32 messageHash = keccak256(abi.encodePacked("Hello, ", task.name));
+        bytes32 messageHash = keccak256(abi.encodePacked(task.walletAdress));
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
         bytes4 magicValue = IERC1271Upgradeable.isValidSignature.selector;
         if (!(magicValue == ECDSAStakeRegistry(stakeRegistry).isValidSignature(ethSignedMessageHash,signature))){

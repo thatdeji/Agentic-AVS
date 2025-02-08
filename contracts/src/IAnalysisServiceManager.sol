@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-interface IHelloWorldServiceManager {
+interface IAnalysisServiceManager {
     event NewTaskCreated(uint32 indexed taskIndex, Task task);
 
     event TaskResponded(uint32 indexed taskIndex, Task task, address operator);
 
     struct Task {
-        string name;
+        string walletAddress;
         uint32 taskCreatedBlock;
     }
 
@@ -23,7 +23,7 @@ interface IHelloWorldServiceManager {
     ) external view returns (bytes memory);
 
     function createNewTask(
-        string memory name
+        string memory walletAddress
     ) external returns (Task memory);
 
     function respondToTask(
