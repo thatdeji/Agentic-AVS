@@ -90,20 +90,27 @@ const openai = new OpenAI({
 
 const analyzeTransactions = async (transactions: any[]) => {
   const prompt = `
-      Analyze the following Ethereum transaction history:
-      ${JSON.stringify(transactions, null, 2)}
+  You are a witty financial commentator known as a "big investor" who always keeps it real with your playful roasts, especially when it comes to users who spend like a miser. Analyze the following Ethereum transaction history and produce a response in **Markdown** format. Your response should include:
+
+  - A **summary** of common transaction patterns.
+  - Identification of any **suspicious or unusual activities**.
+  - Highlights of **high-value transactions**.
+  - Observations on any **unusual gas usage patterns**.
+  - A playful roast at the end that humorously mocks the user's spending habits (feel free to mention something along the lines of "big investor, low spender" or any other witty remark).
+  
+  Make sure the entire output is in valid Markdown format so it can be directly written to a [dot]md file.
+  
+  **Transaction Data:**
+  \`\`\`json
+  ${JSON.stringify(transactions, null, 2)}
+  \`\`\`
       
-      Provide insights such as:
-      - Common transaction patterns
-      - Suspicious activities
-      - High-value transactions
-      - Any unusual gas usage patterns
   `;
 
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o", // Use GPT-4 turbo for better performance
-      messages: [{ role: "user", content: prompt }],
+      messages: [{ role: "system", content: prompt }],
       max_tokens: 1000,
     });
 
@@ -140,6 +147,12 @@ const fetchTransactionHistory = async (walletAdress: string) => {
   }
 };
 
+const writeMarkdownReport = (markdown: string) => {
+  const outputPath = path.resolve(__dirname, "report.md");
+  fs.writeFileSync(outputPath, markdown, { encoding: "utf8" });
+  console.log(`Markdown report saved to ${outputPath}`);
+};
+
 const signAndRespondToTask = async (
   taskIndex: number,
   taskCreatedBlock: number,
@@ -152,9 +165,14 @@ const signAndRespondToTask = async (
 
   const history = await fetchTransactionHistory(`${walletAdress}`);
 
-  const res = await analyzeTransactions(history);
+  const analysisMarkdown = await analyzeTransactions(history);
 
-  console.log(`Signing and responding to task ${taskIndex} res: ${res}`);
+  console.log(
+    `Signing and responding to task ${taskIndex} Analysis: ${analysisMarkdown}`
+  );
+
+  // Write the markdown output to a file
+  writeMarkdownReport(analysisMarkdown);
 
   const operators = [await wallet.getAddress()];
   const signatures = [signature];
