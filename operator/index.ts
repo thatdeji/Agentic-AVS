@@ -1,5 +1,7 @@
 import { ethers } from "ethers";
 import * as dotenv from "dotenv";
+import axios from "axios";
+import OpenAI from "openai";
 const fs = require("fs");
 const path = require("path");
 dotenv.config();
@@ -82,18 +84,77 @@ const avsDirectory = new ethers.Contract(
   avsDirectoryABI,
   wallet
 );
+const openai = new OpenAI({
+  apiKey: process.env.OPEN_AI_KEY,
+});
+
+const analyzeTransactions = async (transactions: any[]) => {
+  const prompt = `
+      Analyze the following Ethereum transaction history:
+      ${JSON.stringify(transactions, null, 2)}
+      
+      Provide insights such as:
+      - Common transaction patterns
+      - Suspicious activities
+      - High-value transactions
+      - Any unusual gas usage patterns
+  `;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o", // Use GPT-4 turbo for better performance
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 1000,
+    });
+
+    return response.choices[0].message?.content || "No analysis available.";
+  } catch (error) {
+    console.error("Error analyzing transactions:", error);
+    return "Error occurred while analyzing transactions.";
+  }
+};
+
+const fetchTransactionHistory = async (walletAdress: string) => {
+  try {
+    const response = await axios.get(`https://api-sepolia.etherscan.io/api`, {
+      params: {
+        module: "account",
+        action: "txlist",
+        address: walletAdress,
+        startblock: 0,
+        page: 1,
+        offset: 500,
+        sort: "asc",
+        apikey: process.env.ETHERSCAN_API_KEY,
+      },
+    });
+
+    if (response.data.status === "1") {
+      return response.data.result; // Array of transactions
+    } else {
+      throw new Error("Failed to fetch transaction history");
+    }
+  } catch (error) {
+    console.error("Error fetching transactions:", error);
+    return [];
+  }
+};
 
 const signAndRespondToTask = async (
   taskIndex: number,
   taskCreatedBlock: number,
-  taskWalletAddress: string
+  walletAdress: string
 ) => {
-  const message = `${taskWalletAddress}`;
+  const message = `${walletAdress}`;
   const messageHash = ethers.solidityPackedKeccak256(["string"], [message]);
   const messageBytes = ethers.getBytes(messageHash);
   const signature = await wallet.signMessage(messageBytes);
 
-  console.log(`Signing and responding to task ${taskIndex}`);
+  const history = await fetchTransactionHistory(`${walletAdress}`);
+
+  const res = await analyzeTransactions(history);
+
+  console.log(`Signing and responding to task ${taskIndex} res: ${res}`);
 
   const operators = [await wallet.getAddress()];
   const signatures = [signature];
@@ -107,7 +168,7 @@ const signAndRespondToTask = async (
   );
 
   const tx = await analysisServiceManager.respondToTask(
-    { walletAddress: taskWalletAddress, taskCreatedBlock: taskCreatedBlock },
+    { walletAdress: walletAdress, taskCreatedBlock: taskCreatedBlock },
     taskIndex,
     signedTask
   );
@@ -181,11 +242,11 @@ const monitorNewTasks = async () => {
   analysisServiceManager.on(
     "NewTaskCreated",
     async (taskIndex: number, task: any) => {
-      console.log(`New task detected: analyse ${task.walletAddress}`);
+      console.log(`New task detected: analyse ${task.walletAdress}`);
       await signAndRespondToTask(
         taskIndex,
         task.taskCreatedBlock,
-        task.walletAddress
+        task.walletAdress
       );
     }
   );

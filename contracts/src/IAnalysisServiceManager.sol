@@ -7,7 +7,7 @@ interface IAnalysisServiceManager {
     event TaskResponded(uint32 indexed taskIndex, Task task, address operator);
 
     struct Task {
-        string walletAddress;
+        string walletAdress;
         uint32 taskCreatedBlock;
     }
 
@@ -23,7 +23,7 @@ interface IAnalysisServiceManager {
     ) external view returns (bytes memory);
 
     function createNewTask(
-        string memory walletAddress
+        string memory walletAdress
     ) external returns (Task memory);
 
     function respondToTask(
