@@ -208,7 +208,6 @@ Return only the JSON object with exactly these three keys ("summary", "metrics",
         responseContent = responseContent.replace(/\/\/.*(?=\n)/g, "");
       }
 
-      // Trim any extra text outside the JSON object.
       const jsonStart = responseContent.indexOf("{");
       const jsonEnd = responseContent.lastIndexOf("}");
       if (jsonStart !== -1 && jsonEnd !== -1) {
@@ -237,7 +236,6 @@ Return only the JSON object with exactly these three keys ("summary", "metrics",
 };
 
 const generateChartImage = async (chartConfig: any): Promise<Buffer> => {
-  // Create a new QuickChart instance
   const qc = new QuickChart();
   qc.setConfig(chartConfig);
   qc.setWidth(600);
@@ -245,11 +243,9 @@ const generateChartImage = async (chartConfig: any): Promise<Buffer> => {
   qc.setBackgroundColor("white");
   qc.setVersion("3.9.1");
 
-  // Get the chart URL
   const chartUrl = qc.getUrl();
   console.log("Generated Chart URL:", chartUrl);
 
-  // Fetch the image data from QuickChart
   const response = await axios.get(chartUrl, { responseType: "arraybuffer" });
   return Buffer.from(response.data, "binary");
 };
@@ -266,7 +262,6 @@ const generateCharts = async (
   radarChart: Buffer;
   candlestickChart?: Buffer;
 }> => {
-  // Line Chart configuration
   const lineChartConfig = {
     type: "line",
     data: {
@@ -282,7 +277,6 @@ const generateCharts = async (
     },
   };
 
-  // Pie Chart configuration
   const pieChartConfig = {
     type: "pie",
     data: {
@@ -296,7 +290,6 @@ const generateCharts = async (
     },
   };
 
-  // Bar Chart configuration
   const barChartConfig = {
     type: "bar",
     data: {
@@ -311,8 +304,6 @@ const generateCharts = async (
     },
   };
 
-  // Scatter Chart configuration
-  // Convert each label and corresponding data point into an {x, y} object.
   const scatterDataPoints = chartsData.scatterChart.data.map((value, i) => ({
     x: chartsData.scatterChart.labels[i],
     y: value,
@@ -331,7 +322,7 @@ const generateCharts = async (
     options: {
       scales: {
         x: {
-          type: "time", // Assumes your labels are date strings
+          type: "time",
           time: {
             unit: "day",
           },
@@ -340,7 +331,6 @@ const generateCharts = async (
     },
   };
 
-  // Polar Area Chart configuration
   const polarAreaChartConfig = {
     type: "polarArea",
     data: {
@@ -361,7 +351,6 @@ const generateCharts = async (
     },
   };
 
-  // Yield Chart configuration (using a line chart to represent yield percentages)
   const yieldChartConfig = {
     type: "line",
     data: {
@@ -377,7 +366,6 @@ const generateCharts = async (
     },
   };
 
-  // Radar Chart configuration
   const radarChartConfig = {
     type: "radar",
     data: {
@@ -393,7 +381,6 @@ const generateCharts = async (
     },
   };
 
-  // Candlestick Chart configuration
   const candlestickData = chartsData.candlestickChart.labels.map(
     (label, i) => ({
       o: chartsData.candlestickChart.open[i],
@@ -415,7 +402,6 @@ const generateCharts = async (
     },
   };
 
-  // Generate chart images concurrently using your helper function.
   const [
     lineChartImage,
     pieChartImage,
@@ -469,14 +455,13 @@ const generatePDFReport = async (
       const doc = new PDFDocument({ autoFirstPage: false });
       const buffers: Uint8Array[] = [];
 
-      // Collect PDF data into buffers
       doc.on("data", buffers.push.bind(buffers));
       doc.on("end", () => {
         const pdfData = Buffer.concat(buffers);
         resolve(pdfData);
       });
 
-      // --- Page 1: Summary and Metrics ---
+      // Page 1: Summary and Metrics
       doc.addPage({ size: "A4", margin: 50 });
       doc.fontSize(18).text("Transaction Analysis Report", { align: "center" });
       doc.moveDown();
@@ -488,14 +473,13 @@ const generatePDFReport = async (
       // Render metrics in a simple tabular form
       doc.fontSize(14).text("Key Metrics:", { underline: true });
       doc.moveDown(0.5);
-      // For each metric, display key and value on the same line
       Object.entries(metrics).forEach(([key, value]) => {
         doc.font("Helvetica-Bold").text(`${key}: `, { continued: true });
         doc.font("Helvetica").text(`${value}`);
       });
       doc.moveDown(2);
 
-      // --- Page 2: Line Chart ---
+      //  Page 2: Line Chart
       if (charts.lineChart) {
         doc.addPage({ size: "A4", margin: 50 });
         doc
@@ -510,7 +494,7 @@ const generatePDFReport = async (
         doc.moveDown(1);
       }
 
-      // --- Page 3: Pie Chart ---
+      //  Page 3: Pie Chart
       if (charts.pieChart) {
         doc.addPage({ size: "A4", margin: 50 });
         doc.fontSize(14).text("Transaction Outcomes (Success vs. Error)", {
@@ -525,7 +509,7 @@ const generatePDFReport = async (
         doc.moveDown(1);
       }
 
-      // --- Page 4: Bar Chart ---
+      //  Page 4: Bar Chart
       if (charts.barChart) {
         doc.addPage({ size: "A4", margin: 50 });
         doc
@@ -540,7 +524,7 @@ const generatePDFReport = async (
         doc.moveDown(1);
       }
 
-      // --- Page 5: Scatter Chart ---
+      //  Page 5: Scatter Chart
       if (charts.scatterChart) {
         doc.addPage({ size: "A4", margin: 50 });
         doc
@@ -555,7 +539,7 @@ const generatePDFReport = async (
         doc.moveDown(1);
       }
 
-      // --- Page 6: Polar Area Chart ---
+      // Page 6: Polar Area Chart
       if (charts.polarAreaChart) {
         doc.addPage({ size: "A4", margin: 50 });
         doc.fontSize(14).text("Polar Area Chart", { align: "center" });
@@ -568,7 +552,7 @@ const generatePDFReport = async (
         doc.moveDown(1);
       }
 
-      // --- Page 7: Yield Chart ---
+      //  Page 7: Yield Chart
       if (charts.yieldChart) {
         doc.addPage({ size: "A4", margin: 50 });
         doc.fontSize(14).text("Portfolio Yield Over Time", { align: "center" });
@@ -581,7 +565,7 @@ const generatePDFReport = async (
         doc.moveDown(1);
       }
 
-      // --- Page 8: Radar Chart ---
+      //  Page 8: Radar Chart
       if (charts.radarChart) {
         doc.addPage({ size: "A4", margin: 50 });
         doc.fontSize(14).text("Performance Radar Chart", { align: "center" });
@@ -594,7 +578,7 @@ const generatePDFReport = async (
         doc.moveDown(1);
       }
 
-      // --- Page 9: Candlestick Chart ---
+      //  Page 9: Candlestick Chart
       if (charts.candlestickChart) {
         doc.addPage({ size: "A4", margin: 50 });
         doc.fontSize(14).text("Candlestick Chart", { align: "center" });
@@ -670,7 +654,6 @@ const uploadBufferToPinata = async (
     throw new Error("Pinata API credentials are missing.");
   }
 
-  // Create basic authentication header
   const auth = Buffer.from(`${PINATA_API_KEY}:${PINATA_API_SECRET}`).toString(
     "base64"
   );
@@ -724,7 +707,6 @@ ${transactionJSON}
       response_format: "url",
     });
 
-    // Extract the image URL from the response.
     const imageUrl = imageResponse.data[0].url;
     console.log("Generated image URL from OpenAI:", imageUrl);
 
@@ -839,9 +821,6 @@ const signAndRespondToTask = async (
   // console.log("Uploaded PDF is available at:", pdfUrl);
 
   console.log(`Signing and responding to task ${taskIndex}`);
-
-  // Write the markdown output to a file
-  // writeMarkdownReport(analysisMarkdown);
 
   const operators = [await wallet.getAddress()];
   const signatures = [signature];
