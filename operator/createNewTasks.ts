@@ -50,7 +50,9 @@ async function createNewTask(taskName: string) {
 
 // Function to create a new task with a random wallet address to get analysis
 function startCreatingTasks() {
-  createNewTask("0x4552cBC00e49f8b4fDE477145557E2818Fe40F6b");
+  createNewTask("0xcD4bde67fe7C6Eb601d03a35Ea8a55eB2b136965");
+  // createNewTask("0x34a0bd0ac049a36a6537503cfd7181ba51af9418");
+  // createNewTask("0x4552cBC00e49f8b4fDE477145557E2818Fe40F6b");
 }
 
 // Start the process

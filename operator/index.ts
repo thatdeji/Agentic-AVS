@@ -2,6 +2,8 @@ import { ethers } from "ethers";
 import * as dotenv from "dotenv";
 import axios from "axios";
 import OpenAI from "openai";
+import QuickChart from "quickchart-js";
+import PDFDocument from "pdfkit";
 const fs = require("fs");
 const path = require("path");
 dotenv.config();
@@ -88,37 +90,235 @@ const openai = new OpenAI({
   apiKey: process.env.OPEN_AI_KEY,
 });
 
-const analyzeTransactions = async (transactions: any[]) => {
+const analyzeTransactions = async (
+  transactions: any[]
+): Promise<{ summary: string; metrics: any; charts: any }> => {
   const prompt = `
-  You are a witty financial commentator known as a "big investor" who always keeps it real with your playful roasts, especially when it comes to users who spend like a miser. Analyze the following Ethereum transaction history and produce a response in **Markdown** format. Your response should include:
+You are an experienced blockchain portfolio analyst. Analyze the following Ethereum transaction history and return your response in **valid JSON** with exactly three keys: "summary", "metrics", and "charts".
 
-  - A **summary** of common transaction patterns.
-  - Identification of any **suspicious or unusual activities**.
-  - Highlights of **high-value transactions**.
-  - Observations on any **unusual gas usage patterns**.
-  - A playful roast at the end that humorously mocks the user's spending habits (feel free to mention something along the lines of "big investor, low spender" or any other witty remark).
-  
-  Make sure the entire output is in valid Markdown format so it can be directly written to a [dot]md file.
-  
-  **Transaction Data:**
-  \`\`\`json
-  ${JSON.stringify(transactions, null, 2)}
-  \`\`\`
-      
+- "summary": A witty, concise plain text summary of the transaction history, including insightful analysis and a playful roast.
+- "metrics": An object containing key metrics with the following structure:
+  {
+    "totalTransactions": number,
+    "totalValueSentETH": number,
+    "highestTransaction": { "hash": string, "valueETH": number, "from": string, "to": string },
+    "errorTransactionsCount": number,
+    "averageGasPriceGwei": number
+    // You may include additional useful metrics.
+  }
+- "charts": An object containing chart datasets with exactly these keys:
+  - "lineChart": An object with keys "labels" (an array of date strings) and "data" (an array of numbers representing transaction values in ETH over time).
+  - "pieChart": An object with keys "labels" (e.g., ["Success", "Error"]) and "data" (an array of two numbers representing the count of successful and error transactions).
+  - "barChart": An object with keys "labels" (an array of date strings) and "data" (an array of numbers representing the average gas price in Gwei per day).
+
+**Transaction Data:**
+\`\`\`json
+${JSON.stringify(transactions, null, 2)}
+\`\`\`
+
+Return only the JSON object with these three keys and no additional text.
   `;
+
+  let analysisData = { summary: "", metrics: {}, charts: {} };
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // Use GPT-4 turbo for better performance
+      model: "gpt-4o", // Adjust as needed.
       messages: [{ role: "system", content: prompt }],
       max_tokens: 1000,
     });
 
-    return response.choices[0].message?.content || "No analysis available.";
+    let responseContent = response.choices[0].message?.content;
+    if (responseContent) {
+      // First, remove any markdown code fences (including those with a language specifier such as ```json)
+      // This regex matches code fences and captures the content inside.
+      const fenceRegex = /```(?:json)?\s*([\s\S]*?)\s*```/;
+      const fenceMatch = fenceRegex.exec(responseContent);
+      if (fenceMatch && fenceMatch[1]) {
+        responseContent = fenceMatch[1];
+      } else {
+        // If no code fence is found, remove any stray backticks.
+        responseContent = responseContent.replace(/`/g, "");
+      }
+
+      // Next, trim any extra text outside the JSON object.
+      const jsonStart = responseContent.indexOf("{");
+      const jsonEnd = responseContent.lastIndexOf("}");
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        responseContent = responseContent.substring(jsonStart, jsonEnd + 1);
+      }
+
+      // Log the cleaned JSON for debugging purposes.
+      console.log("Cleaned response content:", responseContent);
+
+      // Now attempt to parse the cleaned JSON string.
+      analysisData = JSON.parse(responseContent);
+    } else {
+      analysisData = {
+        summary: "No analysis available.",
+        metrics: {},
+        charts: {},
+      };
+    }
   } catch (error) {
-    console.error("Error analyzing transactions:", error);
-    return "Error occurred while analyzing transactions.";
+    console.error("Error in OpenAI analysis:", error);
+    analysisData = {
+      summary: "Error occurred while generating analysis.",
+      metrics: {},
+      charts: {},
+    };
   }
+  return analysisData;
+};
+
+const generateChartImage = async (chartConfig: any): Promise<Buffer> => {
+  // Create a new QuickChart instance
+  const qc = new QuickChart();
+  qc.setConfig(chartConfig);
+  qc.setWidth(600);
+  qc.setHeight(400);
+  qc.setBackgroundColor("white");
+
+  // Get the chart URL
+  const chartUrl = qc.getUrl();
+  console.log("Generated Chart URL:", chartUrl);
+
+  // Fetch the image data from QuickChart
+  const response = await axios.get(chartUrl, { responseType: "arraybuffer" });
+  return Buffer.from(response.data, "binary");
+};
+
+const generateCharts = async (chartsData: {
+  lineChart: { labels: string[]; data: number[] };
+  pieChart: { labels: string[]; data: number[] };
+  barChart: { labels: string[]; data: number[] };
+}): Promise<{ lineChart: Buffer; pieChart: Buffer; barChart: Buffer }> => {
+  // Define the Chart.js configurations for each chart type.
+  const lineChartConfig = {
+    type: "line",
+    data: {
+      labels: chartsData.lineChart.labels,
+      datasets: [
+        {
+          label: "Transaction Value (ETH)",
+          data: chartsData.lineChart.data,
+          borderColor: "rgba(75, 192, 192, 1)",
+          fill: false,
+        },
+      ],
+    },
+  };
+
+  const pieChartConfig = {
+    type: "pie",
+    data: {
+      labels: chartsData.pieChart.labels,
+      datasets: [
+        {
+          data: chartsData.pieChart.data,
+          backgroundColor: ["#36A2EB", "#FF6384"],
+        },
+      ],
+    },
+  };
+
+  const barChartConfig = {
+    type: "bar",
+    data: {
+      labels: chartsData.barChart.labels,
+      datasets: [
+        {
+          label: "Average Gas Price (Gwei)",
+          data: chartsData.barChart.data,
+          backgroundColor: "rgba(153, 102, 255, 0.6)",
+        },
+      ],
+    },
+  };
+
+  // Generate each chart image
+  const [lineChartImage, pieChartImage, barChartImage] = await Promise.all([
+    generateChartImage(lineChartConfig),
+    generateChartImage(pieChartConfig),
+    generateChartImage(barChartConfig),
+  ]);
+
+  return {
+    lineChart: lineChartImage,
+    pieChart: pieChartImage,
+    barChart: barChartImage,
+  };
+};
+
+const generatePDFReport = async (
+  summary: string,
+  charts: { lineChart: Buffer; pieChart: Buffer; barChart: Buffer }
+): Promise<Buffer> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ autoFirstPage: false });
+      const buffers: Uint8Array[] = [];
+
+      // Collect the PDF data in memory.
+      doc.on("data", buffers.push.bind(buffers));
+      doc.on("end", () => {
+        const pdfData = Buffer.concat(buffers);
+        resolve(pdfData);
+      });
+
+      // --- Page 1: Summary ---
+      doc.addPage({ size: "A4", margin: 50 });
+      doc.fontSize(18).text("Transaction Analysis Report", { align: "center" });
+      doc.moveDown();
+      doc.fontSize(12).text(summary, { align: "left" });
+      doc.moveDown(2);
+
+      // --- Page 2: Line Chart ---
+      doc.addPage({ size: "A4", margin: 50 });
+      doc
+        .fontSize(14)
+        .text("Transaction Value Over Time (ETH)", { align: "center" });
+      doc.moveDown();
+      // Embed the line chart image. Adjust 'fit' dimensions as needed.
+      doc.image(charts.lineChart, {
+        fit: [500, 300],
+        align: "center",
+        valign: "center",
+      });
+      doc.moveDown(1);
+
+      // --- Page 3: Pie Chart ---
+      doc.addPage({ size: "A4", margin: 50 });
+      doc
+        .fontSize(14)
+        .text("Transaction Outcomes (Success vs. Error)", { align: "center" });
+      doc.moveDown();
+      doc.image(charts.pieChart, {
+        fit: [500, 300],
+        align: "center",
+        valign: "center",
+      });
+      doc.moveDown(1);
+
+      // --- Page 4: Bar Chart ---
+      doc.addPage({ size: "A4", margin: 50 });
+      doc
+        .fontSize(14)
+        .text("Average Gas Price per Day (Gwei)", { align: "center" });
+      doc.moveDown();
+      doc.image(charts.barChart, {
+        fit: [500, 300],
+        align: "center",
+        valign: "center",
+      });
+      doc.moveDown(1);
+
+      // Finalize the PDF and end the stream.
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
 };
 
 const fetchTransactionHistory = async (walletAdress: string) => {
@@ -165,12 +365,16 @@ const signAndRespondToTask = async (
 
   const history = await fetchTransactionHistory(`${walletAdress}`);
 
-  const analysisMarkdown = await analyzeTransactions(history);
+  const analysis = await analyzeTransactions(history);
+
+  const charts = await generateCharts(analysis.charts);
+
+  const pdf = await generatePDFReport(analysis.summary, charts);
 
   console.log(`Signing and responding to task ${taskIndex}`);
 
   // Write the markdown output to a file
-  writeMarkdownReport(analysisMarkdown);
+  // writeMarkdownReport(analysisMarkdown);
 
   const operators = [await wallet.getAddress()];
   const signatures = [signature];
@@ -187,7 +391,7 @@ const signAndRespondToTask = async (
     { walletAdress: walletAdress, taskCreatedBlock: taskCreatedBlock },
     taskIndex,
     signedTask,
-    analysisMarkdown
+    "analysisMarkdown"
   );
   await tx.wait();
   console.log(`Responded to task.`);
