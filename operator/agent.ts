@@ -6,32 +6,31 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export const analyzeTransactions = async (
-  transactions: any[]
-): Promise<{ summary: string; metrics: any; charts: any }> => {
+export const analyzeTransactions = async (dataToAnalyze: {
+  transactions: any[];
+  uniswapData: any;
+  hopData: any;
+  ensData: any;
+}): Promise<{ summary: string; metrics: any; charts: any }> => {
   const prompt = `
-  You are an experienced blockchain portfolio analyst with decades of expertise in both blockchain analytics and financial risk assessment. Your task is to analyze the Ethereum transaction history provided below and return your response in valid JSON with exactly three top-level keys: "summary", "metrics", and "charts". Your analysis must be precise, accurate, and insightful—leaving no mistakes.
-  (For reference: "riskScore" is a number between 0 and 100 indicating risk, "creditScore" is a number between 0 and 100 for financial credibility, etc. while roi, annualizedReturn, maxDrawdown, and sharpeRatio are percentages.)
-  
-  Requirements:
-  
-  1. "summary":
-     - Provide a witty, concise plain text summary of the transaction history.
-     - Include insightful analysis, key trends, anomalies, and a playful roast.
-     - Offer predictions regarding potential future trends or performance.
-     - Highlight portfolio yield performance, risk management, and areas for optimization.
-     - Provide actionable recommendations and potential areas of improvement.
-     - Capture the overall narrative in a manner that is both entertaining and informative.
-  
-  2. "metrics":
-     - An object containing key metrics. It must include the following properties:
+You are an experienced blockchain portfolio analyst with decades of expertise in both blockchain analytics and financial risk assessment. Your task is to analyze the Ethereum transaction history and additional on-chain data provided below and return your response in valid JSON with exactly three top-level keys: "summary", "metrics", and "charts". Your analysis must be precise, accurate, and insightful—leaving no mistakes.
+(For reference: "riskScore" is a number between 0 and 100 indicating risk, "creditScore" is a number between 0 and 100 for financial credibility, etc. while roi, annualizedReturn, maxDrawdown, and sharpeRatio are percentages.)
+
+Requirements:
+
+1. "summary":
+   - Provide a witty, concise plain text summary of the provided data.
+   - Address the user using their ENS domain if available (e.g., "Hello, [ensDomain]!").
+   - Include insightful analysis, key trends, anomalies, and a playful roast.
+   - Offer predictions regarding potential future trends or performance.
+   - Highlight portfolio yield performance, risk management, and areas for optimization.
+   - Provide actionable recommendations and potential areas of improvement.
+   - Capture the overall narrative in a manner that is both entertaining and informative.
+
+2. "metrics":
+   - An object containing key metrics. It must include the following properties:
          - "totalTransactions": number,
          - "totalValueSentETH": number,
-         - "highestTransaction": an object with:
-               - "hash": string,
-               - "valueETH": number,
-               - "from": string,
-               - "to": string,
          - "errorTransactionsCount": number,
          - "averageGasPriceGwei": number,
          - "riskScore": number,
@@ -44,10 +43,22 @@ export const analyzeTransactions = async (
          - "annualizedReturn": number,
          - "maxDrawdown": number,
          - "sharpeRatio": number,
-     - Also include an optional "additionalMetrics" field, which is an object that can include further metrics.
-  
-  3. "charts":
-     - An object containing datasets for visualization. It must include exactly these keys:
+         - "uniswapSwapVolumeUSD": number,
+         - "numberOfSwaps": number,
+         - "averageSwapSizeETH": number,
+         - "hopBridgeVolumeUSD": number,
+         - "numberOfBridges": number,
+         - "averageBridgeSize": number,
+         - "ensDomainCount": number,
+         - "highestTransaction": an object with:
+               - "hash": string,
+               - "valueETH": number,
+               - "from": string,
+               - "to": string,
+   - Also include an optional "additionalMetrics" field, which is an object that can include further metrics.
+
+3. "charts":
+   - An object containing datasets for visualization. It must include exactly these keys:
          - "lineChart": an object with:
                - "labels": an array of date strings (time intervals),
                - "data": an array of numbers representing transaction values in ETH over time.
@@ -75,15 +86,21 @@ export const analyzeTransactions = async (
          - "radarChart": an object with:
                - "labels": an array of metric names,
                - "data": an array of numbers representing performance across multiple dimensions.
-     - Also include an optional "additionalCharts" field, which is an object containing further chart datasets.
-  
-  **Transaction Data:**
-  \`\`\`json
-  ${JSON.stringify(transactions, null, 2)}
-  \`\`\`
-  
-  Return only the JSON object with exactly these three keys ("summary", "metrics", "charts") and no additional text or markdown formatting.
-    `;
+         - "uniswapVolumeChart": an object with:
+               - "labels": an array of date strings,
+               - "data": an array of numbers representing daily Uniswap swap volume in USD.
+         - "hopBridgeChart": an object with:
+               - "labels": an array of date strings,
+               - "data": an array of numbers representing daily Hop Protocol transfer volume in USD.
+   - Also include an optional "additionalCharts" field, which is an object containing further chart datasets if needed.
+
+**Data to Analyze:**
+\`\`\`json
+${JSON.stringify(dataToAnalyze, null, 2)}
+\`\`\`
+
+Return only the JSON object with exactly these three keys ("summary", "metrics", "charts") and no additional text or markdown formatting.
+  `;
 
   let analysisData = { summary: "", metrics: {}, charts: {} };
 
@@ -91,7 +108,7 @@ export const analyzeTransactions = async (
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{ role: "system", content: prompt }],
-      max_tokens: 2000, // Increased token limit
+      max_tokens: 2000,
     });
 
     let responseContent = response.choices[0].message?.content;

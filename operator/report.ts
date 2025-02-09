@@ -31,6 +31,8 @@ type ChartsDataBuffers = {
   yieldChart?: Buffer;
   radarChart?: Buffer;
   candlestickChart?: Buffer;
+  uniswapVolumeChart?: Buffer;
+  hopBridgeChart?: Buffer;
 };
 
 export const generateChartImage = async (chartConfig: any): Promise<Buffer> => {
@@ -59,6 +61,8 @@ export const generateCharts = async (
   yieldChart: Buffer;
   radarChart: Buffer;
   candlestickChart?: Buffer;
+  uniswapVolumeChart?: Buffer;
+  hopBridgeChart?: Buffer;
 }> => {
   const lineChartConfig = {
     type: "line",
@@ -75,6 +79,20 @@ export const generateCharts = async (
     },
   };
 
+  const hopBridgeChartConfig = {
+    type: "line",
+    data: {
+      labels: chartsData.lineChart.labels,
+      datasets: [
+        {
+          label: "Transaction Value (ETH)",
+          data: chartsData.lineChart.data,
+          borderColor: "rgba(75, 192, 192, 1)",
+          fill: false,
+        },
+      ],
+    },
+  };
   const pieChartConfig = {
     type: "pie",
     data: {
@@ -89,6 +107,20 @@ export const generateCharts = async (
   };
 
   const barChartConfig = {
+    type: "bar",
+    data: {
+      labels: chartsData.barChart.labels,
+      datasets: [
+        {
+          label: "Average Gas Price (Gwei)",
+          data: chartsData.barChart.data,
+          backgroundColor: "rgba(153, 102, 255, 0.6)",
+        },
+      ],
+    },
+  };
+
+  const uniswapChartConfig = {
     type: "bar",
     data: {
       labels: chartsData.barChart.labels,
@@ -209,6 +241,8 @@ export const generateCharts = async (
     yieldChartImage,
     radarChartImage,
     candlestickChartImage,
+    hopBridgeChartImage,
+    uniswapChartImage,
   ] = await Promise.all([
     generateChartImage(lineChartConfig),
     generateChartImage(pieChartConfig),
@@ -218,6 +252,8 @@ export const generateCharts = async (
     generateChartImage(yieldChartConfig),
     generateChartImage(radarChartConfig),
     generateChartImage(candlestickChartConfig),
+    generateChartImage(hopBridgeChartConfig),
+    generateChartImage(uniswapChartConfig),
   ]);
 
   return {
@@ -229,6 +265,8 @@ export const generateCharts = async (
     yieldChart: yieldChartImage,
     radarChart: radarChartImage,
     candlestickChart: candlestickChartImage,
+    hopBridgeChart: hopBridgeChartImage,
+    uniswapVolumeChart: uniswapChartImage,
   };
 };
 
@@ -371,6 +409,34 @@ export const generatePDFReport = async (
         doc.fontSize(14).text("Candlestick Chart", { align: "center" });
         doc.moveDown();
         doc.image(charts.candlestickChart, {
+          fit: [500, 300],
+          align: "center",
+          valign: "center",
+        });
+        doc.moveDown(1);
+      }
+
+      //  Page 10: Hop Bridge Chart
+      if (charts.hopBridgeChart) {
+        doc.addPage({ size: "A4", margin: 50 });
+        doc
+          .fontSize(14)
+          .text("Hop Bridge Transfer Volume", { align: "center" });
+        doc.moveDown();
+        doc.image(charts.hopBridgeChart, {
+          fit: [500, 300],
+          align: "center",
+          valign: "center",
+        });
+        doc.moveDown(1);
+      }
+
+      //  Page 11: Uniswap Volume Chart
+      if (charts.uniswapVolumeChart) {
+        doc.addPage({ size: "A4", margin: 50 });
+        doc.fontSize(14).text("Uniswap Swap Volume", { align: "center" });
+        doc.moveDown();
+        doc.image(charts.uniswapVolumeChart, {
           fit: [500, 300],
           align: "center",
           valign: "center",

@@ -1,15 +1,24 @@
 import { ethers } from "ethers";
 import * as dotenv from "dotenv";
-import { analyzeTransactions, generateWrappedImage } from "./agent";
-import { generateCharts, generatePDFReport } from "./report";
+import { analyzeTransactions, generateWrappedImage } from "./agent.js";
+import { generateCharts, generatePDFReport } from "./report.js";
 import {
   fetchTransactionHistory,
   uploadJSONToPinata,
   uploadToIPFSWithPinata,
-} from "./utils";
-const fs = require("fs");
-const path = require("path");
+} from "./utils.js";
+import {
+  getEnsDomainsByAddress,
+  getHopProtocolBridgeTransfersByAddress,
+  getUniswapV3SwapsByAddress,
+} from "./addressContext.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Check if the process.env object is empty
 if (!Object.keys(process.env).length) {
@@ -22,53 +31,60 @@ const wallet = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
 /// TODO: Hack
 let chainId = 31337;
 
-const avsDeploymentData = JSON.parse(
-  fs.readFileSync(
-    path.resolve(
-      __dirname,
-      `../contracts/deployments/analysis/${chainId}.json`
-    ),
-    "utf8"
-  )
-);
-// Load core deployment data
-const coreDeploymentData = JSON.parse(
-  fs.readFileSync(
-    path.resolve(__dirname, `../contracts/deployments/core/${chainId}.json`),
-    "utf8"
-  )
+const filePath = path.resolve(
+  process.cwd(),
+  "contracts",
+  "deployments",
+  "analysis",
+  `${chainId}.json`
 );
 
-const delegationManagerAddress = coreDeploymentData.addresses.delegation; // todo: reminder to fix the naming of this contract in the deployment file, change to delegationManager
+const avsDeploymentData = JSON.parse(fs.readFileSync(filePath, "utf8"));
+// For core deployment data, also use process.cwd().
+const coreDeploymentFilePath = path.resolve(
+  process.cwd(),
+  "contracts",
+  "deployments",
+  "core",
+  `${chainId}.json`
+);
+const coreDeploymentData = JSON.parse(
+  fs.readFileSync(coreDeploymentFilePath, "utf8")
+);
+
+const delegationManagerAddress = coreDeploymentData.addresses.delegation; // Reminder to fix the naming in the deployment file if needed.
 const avsDirectoryAddress = coreDeploymentData.addresses.avsDirectory;
 const analysisServiceManagerAddress =
   avsDeploymentData.addresses.analysisServiceManager;
 const ecdsaStakeRegistryAddress = avsDeploymentData.addresses.stakeRegistry;
 
-// Load ABIs
+// Load ABIs using paths relative to the project root.
 const delegationManagerABI = JSON.parse(
   fs.readFileSync(
-    path.resolve(__dirname, "../abis/IDelegationManager.json"),
+    path.resolve(process.cwd(), "abis", "IDelegationManager.json"),
     "utf8"
   )
 );
 const ecdsaRegistryABI = JSON.parse(
   fs.readFileSync(
-    path.resolve(__dirname, "../abis/ECDSAStakeRegistry.json"),
+    path.resolve(process.cwd(), "abis", "ECDSAStakeRegistry.json"),
     "utf8"
   )
 );
 const analysisServiceManagerABI = JSON.parse(
   fs.readFileSync(
-    path.resolve(__dirname, "../abis/AnalysisServiceManager.json"),
+    path.resolve(process.cwd(), "abis", "AnalysisServiceManager.json"),
     "utf8"
   )
 );
 const avsDirectoryABI = JSON.parse(
-  fs.readFileSync(path.resolve(__dirname, "../abis/IAVSDirectory.json"), "utf8")
+  fs.readFileSync(
+    path.resolve(process.cwd(), "abis", "IAVSDirectory.json"),
+    "utf8"
+  )
 );
 
-// Initialize contract objects from ABIs
+// Initialize contract objects from ABIs.
 const delegationManager = new ethers.Contract(
   delegationManagerAddress,
   delegationManagerABI,
@@ -102,7 +118,17 @@ const signAndRespondToTask = async (
 
   const history = await fetchTransactionHistory(`${walletAdress}`);
 
-  const analysis = await analyzeTransactions(history);
+  const swap: any = await getUniswapV3SwapsByAddress(walletAdress);
+  const ens: any = await getEnsDomainsByAddress(walletAdress);
+  const hop: any = await getHopProtocolBridgeTransfersByAddress(walletAdress);
+  console.log(swap, ens, hop);
+
+  const analysis = await analyzeTransactions({
+    transactions: history,
+    uniswapData: swap,
+    hopData: hop,
+    ensData: ens,
+  });
 
   const imageUploadResult = await generateWrappedImage(
     JSON.stringify(analysis)

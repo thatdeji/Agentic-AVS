@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start:operator": "ts-node operator/index.ts",
-    "start:traffic": "ts-node operator/createNewTasks.ts",
+    "start:operator": "npx tsc && node dist/operator/index.js",
+    "start:traffic": "npx tsc && node dist/operator/createNewTasks.js",
     "start:anvil": "anvil",
     "start:anvil-quick": "anvil --block-time 0.01",
     "deploy:core": "cd contracts && forge script script/DeployEigenLayerCore.s.sol --rpc-url http://localhost:8545 --broadcast --optimize --optimizer-runs 200 --via-ir",
@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "axios": "^1.7.9",
+    "chart.js": "^4.4.7",
     "dotenv": "^10.0.0",
     "ethers": "^6.13.2",
     "form-data": "^4.0.1",
@@ -37,6 +38,11 @@
     "jest": "^29.7.0",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^3.0.5"
+  },
+  "type": "module",
+  "ts-node": {
+    "esm": true
   }
 }

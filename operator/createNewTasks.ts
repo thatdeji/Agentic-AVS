@@ -1,8 +1,12 @@
 import { ethers } from "ethers";
 import * as dotenv from "dotenv";
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Setup env variables
 const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
@@ -10,20 +14,21 @@ const wallet = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
 /// TODO: Hack
 let chainId = 31337;
 
-const avsDeploymentData = JSON.parse(
-  fs.readFileSync(
-    path.resolve(
-      __dirname,
-      `../contracts/deployments/analysis/${chainId}.json`
-    ),
-    "utf8"
-  )
+const filePath = path.resolve(
+  process.cwd(),
+  "contracts",
+  "deployments",
+  "analysis",
+  `${chainId}.json`
 );
+
+const avsDeploymentData = JSON.parse(fs.readFileSync(filePath, "utf8"));
+
 const analysisServiceManagerAddress =
   avsDeploymentData.addresses.analysisServiceManager;
 const analysisServiceManagerABI = JSON.parse(
   fs.readFileSync(
-    path.resolve(__dirname, "../abis/AnalysisServiceManager.json"),
+    path.resolve(process.cwd(), "abis", "AnalysisServiceManager.json"),
     "utf8"
   )
 );
