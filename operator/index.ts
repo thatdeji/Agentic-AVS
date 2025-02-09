@@ -818,8 +818,6 @@ const signAndRespondToTask = async (
   console.log("Uploaded JSON is available at:", uploadResult.url);
   console.log("IPFS Hash:", uploadResult.hash);
 
-  // console.log("Uploaded PDF is available at:", pdfUrl);
-
   console.log(`Signing and responding to task ${taskIndex}`);
 
   const operators = [await wallet.getAddress()];
