@@ -797,12 +797,6 @@ const fetchTransactionHistory = async (walletAdress: string) => {
   }
 };
 
-const writeMarkdownReport = (markdown: string) => {
-  const outputPath = path.resolve(__dirname, "report.md");
-  fs.writeFileSync(outputPath, markdown, { encoding: "utf8" });
-  console.log(`Markdown report saved to ${outputPath}`);
-};
-
 const signAndRespondToTask = async (
   taskIndex: number,
   taskCreatedBlock: number,
@@ -864,7 +858,7 @@ const signAndRespondToTask = async (
     { walletAdress: walletAdress, taskCreatedBlock: taskCreatedBlock },
     taskIndex,
     signedTask,
-    "analysisMarkdown"
+    uploadResult.hash
   );
   await tx.wait();
   console.log(`Responded to task.`);
