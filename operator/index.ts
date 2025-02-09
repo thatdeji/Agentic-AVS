@@ -4,9 +4,27 @@ import axios from "axios";
 import OpenAI from "openai";
 import QuickChart from "quickchart-js";
 import PDFDocument from "pdfkit";
+import FormData from "form-data";
 const fs = require("fs");
 const path = require("path");
 dotenv.config();
+
+type ChartsData = {
+  lineChart: { labels: string[]; data: number[] };
+  pieChart: { labels: string[]; data: number[] };
+  barChart: { labels: string[]; data: number[] };
+  scatterChart: { labels: string[]; data: number[] };
+  polarAreaChart: { labels: string[]; data: number[] };
+  yieldChart: { labels: string[]; data: number[] };
+  radarChart: { labels: string[]; data: number[] };
+  candlestickChart: {
+    labels: string[];
+    open: number[];
+    high: number[];
+    low: number[];
+    close: number[];
+  };
+};
 
 // Check if the process.env object is empty
 if (!Object.keys(process.env).length) {
@@ -94,64 +112,111 @@ const analyzeTransactions = async (
   transactions: any[]
 ): Promise<{ summary: string; metrics: any; charts: any }> => {
   const prompt = `
-You are an experienced blockchain portfolio analyst. Analyze the following Ethereum transaction history and return your response in **valid JSON** with exactly three keys: "summary", "metrics", and "charts".
+You are an experienced blockchain portfolio analyst with decades of expertise in both blockchain analytics and financial risk assessment. Your task is to analyze the Ethereum transaction history provided below and return your response in valid JSON with exactly three top-level keys: "summary", "metrics", and "charts". Your analysis must be precise, accurate, and insightful—leaving no mistakes.
+(For reference: "riskScore" is a number between 0 and 100 indicating risk, "creditScore" is a number between 0 and 100 for financial credibility, etc. while roi, annualizedReturn, maxDrawdown, and sharpeRatio are percentages.)
 
-- "summary": A witty, concise plain text summary of the transaction history, including insightful analysis and a playful roast.
-- "metrics": An object containing key metrics with the following structure:
-  {
-    "totalTransactions": number,
-    "totalValueSentETH": number,
-    "highestTransaction": { "hash": string, "valueETH": number, "from": string, "to": string },
-    "errorTransactionsCount": number,
-    "averageGasPriceGwei": number
-    // You may include additional useful metrics.
-  }
-- "charts": An object containing chart datasets with exactly these keys:
-  - "lineChart": An object with keys "labels" (an array of date strings) and "data" (an array of numbers representing transaction values in ETH over time).
-  - "pieChart": An object with keys "labels" (e.g., ["Success", "Error"]) and "data" (an array of two numbers representing the count of successful and error transactions).
-  - "barChart": An object with keys "labels" (an array of date strings) and "data" (an array of numbers representing the average gas price in Gwei per day).
+Requirements:
+
+1. "summary":
+   - Provide a witty, concise plain text summary of the transaction history.
+   - Include insightful analysis, key trends, anomalies, and a playful roast.
+   - Offer predictions regarding potential future trends or performance.
+   - Highlight portfolio yield performance, risk management, and areas for optimization.
+   - Provide actionable recommendations and potential areas of improvement.
+   - Capture the overall narrative in a manner that is both entertaining and informative.
+
+2. "metrics":
+   - An object containing key metrics. It must include the following properties:
+       - "totalTransactions": number,
+       - "totalValueSentETH": number,
+       - "highestTransaction": an object with:
+             - "hash": string,
+             - "valueETH": number,
+             - "from": string,
+             - "to": string,
+       - "errorTransactionsCount": number,
+       - "averageGasPriceGwei": number,
+       - "riskScore": number,
+       - "creditScore": number,
+       - "volatilityScore": number,
+       - "engagementScore": number,
+       - "frequencyScore": number,
+       - "liquidityScore": number,
+       - "roi": number,
+       - "annualizedReturn": number,
+       - "maxDrawdown": number,
+       - "sharpeRatio": number,
+   - Also include an optional "additionalMetrics" field, which is an object that can include further metrics.
+
+3. "charts":
+   - An object containing datasets for visualization. It must include exactly these keys:
+       - "lineChart": an object with:
+             - "labels": an array of date strings (time intervals),
+             - "data": an array of numbers representing transaction values in ETH over time.
+       - "pieChart": an object with:
+             - "labels": an array of two strings, e.g., ["Success", "Error"],
+             - "data": an array of two numbers representing the count of successful versus error transactions.
+       - "barChart": an object with:
+             - "labels": an array of date strings,
+             - "data": an array of numbers representing the average gas price in Gwei per day.
+       - "scatterChart": an object with:
+             - "labels": an array of date strings,
+             - "data": an array of numbers representing transaction values.
+       - "polarAreaChart": an object with:
+             - "labels": an array of category strings,
+             - "data": an array of numbers.
+       - "yieldChart": an object with:
+             - "labels": an array of date strings,
+             - "data": an array of numbers representing portfolio yield percentages over time.
+       - "candlestickChart": an object with:
+             - "labels": an array of date strings,
+             - "open": an array of numbers,
+             - "high": an array of numbers,
+             - "low": an array of numbers,
+             - "close": an array of numbers.
+       - "radarChart": an object with:
+             - "labels": an array of metric names,
+             - "data": an array of numbers representing performance across multiple dimensions.
+   - Also include an optional "additionalCharts" field, which is an object containing further chart datasets.
 
 **Transaction Data:**
 \`\`\`json
 ${JSON.stringify(transactions, null, 2)}
 \`\`\`
 
-Return only the JSON object with these three keys and no additional text.
+Return only the JSON object with exactly these three keys ("summary", "metrics", "charts") and no additional text or markdown formatting.
   `;
 
   let analysisData = { summary: "", metrics: {}, charts: {} };
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // Adjust as needed.
+      model: "gpt-4o",
       messages: [{ role: "system", content: prompt }],
-      max_tokens: 1000,
+      max_tokens: 2000, // Increased token limit
     });
 
     let responseContent = response.choices[0].message?.content;
     if (responseContent) {
-      // First, remove any markdown code fences (including those with a language specifier such as ```json)
-      // This regex matches code fences and captures the content inside.
+      // Remove markdown code fences if present.
       const fenceRegex = /```(?:json)?\s*([\s\S]*?)\s*```/;
       const fenceMatch = fenceRegex.exec(responseContent);
       if (fenceMatch && fenceMatch[1]) {
         responseContent = fenceMatch[1];
       } else {
-        // If no code fence is found, remove any stray backticks.
-        responseContent = responseContent.replace(/`/g, "");
+        // Remove inline comments (anything starting with // until a newline)
+        responseContent = responseContent.replace(/\/\/.*(?=\n)/g, "");
       }
 
-      // Next, trim any extra text outside the JSON object.
+      // Trim any extra text outside the JSON object.
       const jsonStart = responseContent.indexOf("{");
       const jsonEnd = responseContent.lastIndexOf("}");
       if (jsonStart !== -1 && jsonEnd !== -1) {
         responseContent = responseContent.substring(jsonStart, jsonEnd + 1);
       }
 
-      // Log the cleaned JSON for debugging purposes.
       console.log("Cleaned response content:", responseContent);
 
-      // Now attempt to parse the cleaned JSON string.
       analysisData = JSON.parse(responseContent);
     } else {
       analysisData = {
@@ -178,6 +243,7 @@ const generateChartImage = async (chartConfig: any): Promise<Buffer> => {
   qc.setWidth(600);
   qc.setHeight(400);
   qc.setBackgroundColor("white");
+  qc.setVersion("3.9.1");
 
   // Get the chart URL
   const chartUrl = qc.getUrl();
@@ -188,12 +254,19 @@ const generateChartImage = async (chartConfig: any): Promise<Buffer> => {
   return Buffer.from(response.data, "binary");
 };
 
-const generateCharts = async (chartsData: {
-  lineChart: { labels: string[]; data: number[] };
-  pieChart: { labels: string[]; data: number[] };
-  barChart: { labels: string[]; data: number[] };
-}): Promise<{ lineChart: Buffer; pieChart: Buffer; barChart: Buffer }> => {
-  // Define the Chart.js configurations for each chart type.
+const generateCharts = async (
+  chartsData: ChartsData
+): Promise<{
+  lineChart: Buffer;
+  pieChart: Buffer;
+  barChart: Buffer;
+  scatterChart: Buffer;
+  polarAreaChart: Buffer;
+  yieldChart: Buffer;
+  radarChart: Buffer;
+  candlestickChart?: Buffer;
+}> => {
+  // Line Chart configuration
   const lineChartConfig = {
     type: "line",
     data: {
@@ -209,6 +282,7 @@ const generateCharts = async (chartsData: {
     },
   };
 
+  // Pie Chart configuration
   const pieChartConfig = {
     type: "pie",
     data: {
@@ -222,6 +296,7 @@ const generateCharts = async (chartsData: {
     },
   };
 
+  // Bar Chart configuration
   const barChartConfig = {
     type: "bar",
     data: {
@@ -236,89 +311,464 @@ const generateCharts = async (chartsData: {
     },
   };
 
-  // Generate each chart image
-  const [lineChartImage, pieChartImage, barChartImage] = await Promise.all([
+  // Scatter Chart configuration
+  // Convert each label and corresponding data point into an {x, y} object.
+  const scatterDataPoints = chartsData.scatterChart.data.map((value, i) => ({
+    x: chartsData.scatterChart.labels[i],
+    y: value,
+  }));
+  const scatterChartConfig = {
+    type: "scatter",
+    data: {
+      datasets: [
+        {
+          label: "Scatter Chart",
+          data: scatterDataPoints,
+          backgroundColor: "rgba(255, 99, 132, 1)",
+        },
+      ],
+    },
+    options: {
+      scales: {
+        x: {
+          type: "time", // Assumes your labels are date strings
+          time: {
+            unit: "day",
+          },
+        },
+      },
+    },
+  };
+
+  // Polar Area Chart configuration
+  const polarAreaChartConfig = {
+    type: "polarArea",
+    data: {
+      labels: chartsData.polarAreaChart.labels,
+      datasets: [
+        {
+          data: chartsData.polarAreaChart.data,
+          backgroundColor: [
+            "rgba(255, 99, 132, 0.6)",
+            "rgba(54, 162, 235, 0.6)",
+            "rgba(255, 206, 86, 0.6)",
+            "rgba(75, 192, 192, 0.6)",
+            "rgba(153, 102, 255, 0.6)",
+            "rgba(255, 159, 64, 0.6)",
+          ],
+        },
+      ],
+    },
+  };
+
+  // Yield Chart configuration (using a line chart to represent yield percentages)
+  const yieldChartConfig = {
+    type: "line",
+    data: {
+      labels: chartsData.yieldChart.labels,
+      datasets: [
+        {
+          label: "Portfolio Yield (%)",
+          data: chartsData.yieldChart.data,
+          borderColor: "rgba(255, 205, 86, 1)",
+          fill: false,
+        },
+      ],
+    },
+  };
+
+  // Radar Chart configuration
+  const radarChartConfig = {
+    type: "radar",
+    data: {
+      labels: chartsData.radarChart.labels,
+      datasets: [
+        {
+          label: "Performance Metrics",
+          data: chartsData.radarChart.data,
+          backgroundColor: "rgba(75, 192, 192, 0.2)",
+          borderColor: "rgba(75, 192, 192, 1)",
+        },
+      ],
+    },
+  };
+
+  // Candlestick Chart configuration
+  const candlestickData = chartsData.candlestickChart.labels.map(
+    (label, i) => ({
+      o: chartsData.candlestickChart.open[i],
+      h: chartsData.candlestickChart.high[i],
+      l: chartsData.candlestickChart.low[i],
+      c: chartsData.candlestickChart.close[i],
+    })
+  );
+  const candlestickChartConfig = {
+    type: "candlestick",
+    data: {
+      labels: chartsData.candlestickChart.labels,
+      datasets: [
+        {
+          label: "Candlestick Chart",
+          data: candlestickData,
+        },
+      ],
+    },
+  };
+
+  // Generate chart images concurrently using your helper function.
+  const [
+    lineChartImage,
+    pieChartImage,
+    barChartImage,
+    scatterChartImage,
+    polarAreaChartImage,
+    yieldChartImage,
+    radarChartImage,
+    candlestickChartImage,
+  ] = await Promise.all([
     generateChartImage(lineChartConfig),
     generateChartImage(pieChartConfig),
     generateChartImage(barChartConfig),
+    generateChartImage(scatterChartConfig),
+    generateChartImage(polarAreaChartConfig),
+    generateChartImage(yieldChartConfig),
+    generateChartImage(radarChartConfig),
+    generateChartImage(candlestickChartConfig),
   ]);
 
   return {
     lineChart: lineChartImage,
     pieChart: pieChartImage,
     barChart: barChartImage,
+    scatterChart: scatterChartImage,
+    polarAreaChart: polarAreaChartImage,
+    yieldChart: yieldChartImage,
+    radarChart: radarChartImage,
+    candlestickChart: candlestickChartImage,
   };
+};
+
+type ChartsDataBuffers = {
+  lineChart: Buffer;
+  pieChart: Buffer;
+  barChart: Buffer;
+  scatterChart?: Buffer;
+  polarAreaChart?: Buffer;
+  yieldChart?: Buffer;
+  radarChart?: Buffer;
+  candlestickChart?: Buffer;
 };
 
 const generatePDFReport = async (
   summary: string,
-  charts: { lineChart: Buffer; pieChart: Buffer; barChart: Buffer }
+  metrics: any,
+  charts: ChartsDataBuffers
 ): Promise<Buffer> => {
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ autoFirstPage: false });
       const buffers: Uint8Array[] = [];
 
-      // Collect the PDF data in memory.
+      // Collect PDF data into buffers
       doc.on("data", buffers.push.bind(buffers));
       doc.on("end", () => {
         const pdfData = Buffer.concat(buffers);
         resolve(pdfData);
       });
 
-      // --- Page 1: Summary ---
+      // --- Page 1: Summary and Metrics ---
       doc.addPage({ size: "A4", margin: 50 });
       doc.fontSize(18).text("Transaction Analysis Report", { align: "center" });
       doc.moveDown();
+
+      // Summary text
       doc.fontSize(12).text(summary, { align: "left" });
+      doc.moveDown();
+
+      // Render metrics in a simple tabular form
+      doc.fontSize(14).text("Key Metrics:", { underline: true });
+      doc.moveDown(0.5);
+      // For each metric, display key and value on the same line
+      Object.entries(metrics).forEach(([key, value]) => {
+        doc.font("Helvetica-Bold").text(`${key}: `, { continued: true });
+        doc.font("Helvetica").text(`${value}`);
+      });
       doc.moveDown(2);
 
       // --- Page 2: Line Chart ---
-      doc.addPage({ size: "A4", margin: 50 });
-      doc
-        .fontSize(14)
-        .text("Transaction Value Over Time (ETH)", { align: "center" });
-      doc.moveDown();
-      // Embed the line chart image. Adjust 'fit' dimensions as needed.
-      doc.image(charts.lineChart, {
-        fit: [500, 300],
-        align: "center",
-        valign: "center",
-      });
-      doc.moveDown(1);
+      if (charts.lineChart) {
+        doc.addPage({ size: "A4", margin: 50 });
+        doc
+          .fontSize(14)
+          .text("Transaction Value Over Time (ETH)", { align: "center" });
+        doc.moveDown();
+        doc.image(charts.lineChart, {
+          fit: [500, 300],
+          align: "center",
+          valign: "center",
+        });
+        doc.moveDown(1);
+      }
 
       // --- Page 3: Pie Chart ---
-      doc.addPage({ size: "A4", margin: 50 });
-      doc
-        .fontSize(14)
-        .text("Transaction Outcomes (Success vs. Error)", { align: "center" });
-      doc.moveDown();
-      doc.image(charts.pieChart, {
-        fit: [500, 300],
-        align: "center",
-        valign: "center",
-      });
-      doc.moveDown(1);
+      if (charts.pieChart) {
+        doc.addPage({ size: "A4", margin: 50 });
+        doc.fontSize(14).text("Transaction Outcomes (Success vs. Error)", {
+          align: "center",
+        });
+        doc.moveDown();
+        doc.image(charts.pieChart, {
+          fit: [500, 300],
+          align: "center",
+          valign: "center",
+        });
+        doc.moveDown(1);
+      }
 
       // --- Page 4: Bar Chart ---
-      doc.addPage({ size: "A4", margin: 50 });
-      doc
-        .fontSize(14)
-        .text("Average Gas Price per Day (Gwei)", { align: "center" });
-      doc.moveDown();
-      doc.image(charts.barChart, {
-        fit: [500, 300],
-        align: "center",
-        valign: "center",
-      });
-      doc.moveDown(1);
+      if (charts.barChart) {
+        doc.addPage({ size: "A4", margin: 50 });
+        doc
+          .fontSize(14)
+          .text("Average Gas Price per Day (Gwei)", { align: "center" });
+        doc.moveDown();
+        doc.image(charts.barChart, {
+          fit: [500, 300],
+          align: "center",
+          valign: "center",
+        });
+        doc.moveDown(1);
+      }
 
-      // Finalize the PDF and end the stream.
+      // --- Page 5: Scatter Chart ---
+      if (charts.scatterChart) {
+        doc.addPage({ size: "A4", margin: 50 });
+        doc
+          .fontSize(14)
+          .text("Scatter Chart of Transaction Values", { align: "center" });
+        doc.moveDown();
+        doc.image(charts.scatterChart, {
+          fit: [500, 300],
+          align: "center",
+          valign: "center",
+        });
+        doc.moveDown(1);
+      }
+
+      // --- Page 6: Polar Area Chart ---
+      if (charts.polarAreaChart) {
+        doc.addPage({ size: "A4", margin: 50 });
+        doc.fontSize(14).text("Polar Area Chart", { align: "center" });
+        doc.moveDown();
+        doc.image(charts.polarAreaChart, {
+          fit: [500, 300],
+          align: "center",
+          valign: "center",
+        });
+        doc.moveDown(1);
+      }
+
+      // --- Page 7: Yield Chart ---
+      if (charts.yieldChart) {
+        doc.addPage({ size: "A4", margin: 50 });
+        doc.fontSize(14).text("Portfolio Yield Over Time", { align: "center" });
+        doc.moveDown();
+        doc.image(charts.yieldChart, {
+          fit: [500, 300],
+          align: "center",
+          valign: "center",
+        });
+        doc.moveDown(1);
+      }
+
+      // --- Page 8: Radar Chart ---
+      if (charts.radarChart) {
+        doc.addPage({ size: "A4", margin: 50 });
+        doc.fontSize(14).text("Performance Radar Chart", { align: "center" });
+        doc.moveDown();
+        doc.image(charts.radarChart, {
+          fit: [500, 300],
+          align: "center",
+          valign: "center",
+        });
+        doc.moveDown(1);
+      }
+
+      // --- Page 9: Candlestick Chart ---
+      if (charts.candlestickChart) {
+        doc.addPage({ size: "A4", margin: 50 });
+        doc.fontSize(14).text("Candlestick Chart", { align: "center" });
+        doc.moveDown();
+        doc.image(charts.candlestickChart, {
+          fit: [500, 300],
+          align: "center",
+          valign: "center",
+        });
+        doc.moveDown(1);
+      }
+
+      // Finalize the PDF
       doc.end();
     } catch (error) {
       reject(error);
     }
   });
+};
+
+const uploadToIPFSWithPinata = async (pdfBuffer: Buffer): Promise<string> => {
+  const formData = new FormData();
+  formData.append("file", pdfBuffer, {
+    filename: "report.pdf",
+    contentType: "application/pdf",
+  });
+
+  // Replace with your Pinata API credentials
+  const PINATA_API_KEY = process.env.PINATA_API_KEY;
+  const PINATA_API_SECRET = process.env.PINATA_API_SECRET;
+
+  if (!PINATA_API_KEY || !PINATA_API_SECRET) {
+    throw new Error("Pinata API credentials are missing.");
+  }
+
+  try {
+    const response = await axios.post(
+      "https://api.pinata.cloud/pinning/pinFileToIPFS",
+      formData,
+      {
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+        headers: {
+          ...formData.getHeaders(),
+          pinata_api_key: PINATA_API_KEY,
+          pinata_secret_api_key: PINATA_API_SECRET,
+        },
+      }
+    );
+
+    if (response.data && response.data.IpfsHash) {
+      return `https://gateway.pinata.cloud/ipfs/${response.data.IpfsHash}`;
+    } else {
+      throw new Error(`Unexpected response: ${JSON.stringify(response.data)}`);
+    }
+  } catch (error) {
+    console.error("IPFS upload via Pinata failed:", error);
+    throw error;
+  }
+};
+
+const uploadBufferToPinata = async (
+  buffer: Buffer,
+  filename: string,
+  contentType: string
+): Promise<{ url: string; hash: string }> => {
+  const formData = new FormData();
+  formData.append("file", buffer, { filename, contentType });
+
+  const PINATA_API_KEY = process.env.PINATA_API_KEY;
+  const PINATA_API_SECRET = process.env.PINATA_API_SECRET;
+  if (!PINATA_API_KEY || !PINATA_API_SECRET) {
+    throw new Error("Pinata API credentials are missing.");
+  }
+
+  // Create basic authentication header
+  const auth = Buffer.from(`${PINATA_API_KEY}:${PINATA_API_SECRET}`).toString(
+    "base64"
+  );
+
+  try {
+    const response = await axios.post(
+      "https://api.pinata.cloud/pinning/pinFileToIPFS",
+      formData,
+      {
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+        headers: {
+          ...formData.getHeaders(),
+          Authorization: `Basic ${auth}`,
+        },
+      }
+    );
+    if (response.data && response.data.IpfsHash) {
+      const ipfsHash = response.data.IpfsHash;
+      const url = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+      return { url, hash: ipfsHash };
+    } else {
+      throw new Error(`Unexpected response: ${JSON.stringify(response.data)}`);
+    }
+  } catch (error) {
+    console.error("Error uploading image to Pinata:", error);
+    throw error;
+  }
+};
+
+const generateWrappedImage = async (
+  transactionJSON: any
+): Promise<{ url: string }> => {
+  const prompt = `
+You are a creative blockchain portfolio analyst. Generate a clean, minimal, and eye-catching "Spotify Wrapped"-style image that summarizes the following Ethereum transaction history. The design should have basic flat colors and simple visual elements:
+- Use simple cards to display key metrics such as total transactions, total ETH transferred, highest transaction details, risk score, and credit score.
+- Include basic charts or icons that represent transaction volume and other key trends.
+- Use clear, plain text labels and minimalistic design (no crazy colors or overly complex graphics).
+  
+Transaction Data:
+${transactionJSON}
+  `;
+
+  try {
+    // Call OpenAI's image generation API (DALL-E 3)
+    const imageResponse = await openai.images.generate({
+      model: "dall-e-3",
+      prompt: prompt,
+      n: 1,
+      size: "1024x1024", // Adjust the size as needed
+      response_format: "url",
+    });
+
+    // Extract the image URL from the response.
+    const imageUrl = imageResponse.data[0].url;
+    console.log("Generated image URL from OpenAI:", imageUrl);
+
+    return { url: imageUrl ?? "" };
+  } catch (error) {
+    console.error("Error generating or uploading the image:", error);
+    throw error;
+  }
+};
+
+const uploadJSONToPinata = async (
+  jsonData: any
+): Promise<{ url: string; hash: string }> => {
+  const PINATA_API_KEY = process.env.PINATA_API_KEY;
+  const PINATA_API_SECRET = process.env.PINATA_API_SECRET;
+
+  if (!PINATA_API_KEY || !PINATA_API_SECRET) {
+    throw new Error("Pinata API credentials are missing.");
+  }
+
+  try {
+    const response = await axios.post(
+      "https://api.pinata.cloud/pinning/pinJSONToIPFS",
+      jsonData,
+      {
+        headers: {
+          pinata_api_key: PINATA_API_KEY,
+          pinata_secret_api_key: PINATA_API_SECRET,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (response.data && response.data.IpfsHash) {
+      const ipfsHash = response.data.IpfsHash;
+      const url = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+      return { url, hash: ipfsHash };
+    } else {
+      throw new Error(`Unexpected response: ${JSON.stringify(response.data)}`);
+    }
+  } catch (error) {
+    console.error("Error uploading JSON to Pinata:", error);
+    throw error;
+  }
 };
 
 const fetchTransactionHistory = async (walletAdress: string) => {
@@ -367,9 +817,32 @@ const signAndRespondToTask = async (
 
   const analysis = await analyzeTransactions(history);
 
+  const imageUploadResult = await generateWrappedImage(
+    JSON.stringify(analysis)
+  );
+
+  console.log("Final Image URL on IPFS:", imageUploadResult.url);
+
   const charts = await generateCharts(analysis.charts);
 
-  const pdf = await generatePDFReport(analysis.summary, charts);
+  const pdfBuffer = await generatePDFReport(
+    analysis.summary,
+    analysis.metrics,
+    charts
+  );
+
+  const pdfUrl = await uploadToIPFSWithPinata(pdfBuffer);
+
+  const uploadResult = await uploadJSONToPinata({
+    ...analysis,
+    imageURL: imageUploadResult.url,
+    pdfUrl: pdfUrl,
+  });
+
+  console.log("Uploaded JSON is available at:", uploadResult.url);
+  console.log("IPFS Hash:", uploadResult.hash);
+
+  // console.log("Uploaded PDF is available at:", pdfUrl);
 
   console.log(`Signing and responding to task ${taskIndex}`);
 
