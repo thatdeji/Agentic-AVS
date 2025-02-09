@@ -139,8 +139,8 @@
     "inputs": [
       {
         "name": "walletAdress",
-        "type": "string",
-        "internalType": "string"
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [
@@ -151,8 +151,8 @@
         "components": [
           {
             "name": "walletAdress",
-            "type": "string",
-            "internalType": "string"
+            "type": "address",
+            "internalType": "address"
           },
           {
             "name": "taskCreatedBlock",
@@ -375,8 +375,8 @@
         "components": [
           {
             "name": "walletAdress",
-            "type": "string",
-            "internalType": "string"
+            "type": "address",
+            "internalType": "address"
           },
           {
             "name": "taskCreatedBlock",
@@ -396,7 +396,7 @@
         "internalType": "bytes"
       },
       {
-        "name": "mdReport",
+        "name": "report",
         "type": "string",
         "internalType": "string"
       }
@@ -513,8 +513,8 @@
         "components": [
           {
             "name": "walletAdress",
-            "type": "string",
-            "internalType": "string"
+            "type": "address",
+            "internalType": "address"
           },
           {
             "name": "taskCreatedBlock",
@@ -582,8 +582,8 @@
         "components": [
           {
             "name": "walletAdress",
-            "type": "string",
-            "internalType": "string"
+            "type": "address",
+            "internalType": "address"
           },
           {
             "name": "taskCreatedBlock",
@@ -599,7 +599,7 @@
         "internalType": "address"
       },
       {
-        "name": "mdReport",
+        "name": "report",
         "type": "string",
         "indexed": false,
         "internalType": "string"

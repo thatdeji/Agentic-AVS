@@ -247,7 +247,7 @@ contract AnalysisTaskManagerSetup is Test {
         return signatures;
     }
 
-    function createTask(TrafficGenerator memory generator, string memory taskAddress) internal {
+    function createTask(TrafficGenerator memory generator, address taskAddress) internal {
         IAnalysisServiceManager AnalysisServiceManager =
             IAnalysisServiceManager(AnalysisDeployment.analysisServiceManager);
 
@@ -259,7 +259,7 @@ contract AnalysisTaskManagerSetup is Test {
         Operator memory operator,
         IAnalysisServiceManager.Task memory task,
         uint32 referenceTaskIndex,
-    string memory mdReport
+    string memory report
     ) internal {
         // Create the message hash
         bytes32 messageHash = keccak256(abi.encodePacked("Hello, ", task.walletAdress));
@@ -274,7 +274,7 @@ contract AnalysisTaskManagerSetup is Test {
         bytes memory signedTask = abi.encode(operators, signatures, uint32(block.number));
 
         IAnalysisServiceManager(AnalysisDeployment.analysisServiceManager).respondToTask(
-            task, referenceTaskIndex, signedTask, mdReport
+            task, referenceTaskIndex, signedTask, report
         );
     }
 }
@@ -377,7 +377,7 @@ contract CreateTask is AnalysisTaskManagerSetup {
     }
 
     function testCreateTask() public {
-        string memory taskAddress = "Test Task";
+        address taskAddress = 0x4552cBC00e49f8b4fDE477145557E2818Fe40F6b;
 
         vm.prank(generator.key.addr);
         IAnalysisServiceManager.Task memory newTask = sm.createNewTask(taskAddress);
@@ -425,7 +425,7 @@ contract RespondToTask is AnalysisTaskManagerSetup {
     }
 
     function testRespondToTask() public {
-        string memory taskAddress = "TestTask";
+        address taskAddress = 0x4552cBC00e49f8b4fDE477145557E2818Fe40F6b;
         IAnalysisServiceManager.Task memory newTask = sm.createNewTask(taskAddress);
         uint32 taskIndex = sm.latestTaskNum() - 1;
 
@@ -440,7 +440,7 @@ contract RespondToTask is AnalysisTaskManagerSetup {
 
         bytes memory signedTask = abi.encode(operatorsMem, signatures, uint32(block.number));
 
-        string memory mdReport = "# Analysis Report\n\n" 
+        string memory report = "# Analysis Report\n\n" 
     "This is a test markdown analysis report generated on-chain.\n\n"
     "- **Insight 1:** Transaction patterns look regular.\n"
     "- **Insight 2:** No suspicious activities detected.\n"
@@ -449,6 +449,6 @@ contract RespondToTask is AnalysisTaskManagerSetup {
 
 
         vm.roll(block.number+1);
-        sm.respondToTask(newTask, taskIndex, signedTask, mdReport);
+        sm.respondToTask(newTask, taskIndex, signedTask, report);
     }
 }

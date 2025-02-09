@@ -64,7 +64,7 @@ contract AnalysisServiceManager is ECDSAServiceManagerBase, IAnalysisServiceMana
     /* FUNCTIONS */
     // NOTE: this function creates new task, assigns it a taskId
     function createNewTask(
-        string memory walletAdress
+        address walletAdress
     ) external returns (Task memory) {
         // create a new task struct
         Task memory newTask;
@@ -83,7 +83,7 @@ contract AnalysisServiceManager is ECDSAServiceManagerBase, IAnalysisServiceMana
         Task calldata task,
         uint32 referenceTaskIndex,
         bytes memory signature,
-        string calldata mdReport
+        string calldata report
     ) external {
         // check that the task is valid, hasn't been responsed yet, and is being responded in time
         require(
@@ -107,7 +107,7 @@ contract AnalysisServiceManager is ECDSAServiceManagerBase, IAnalysisServiceMana
         allTaskResponses[msg.sender][referenceTaskIndex] = signature;
 
         // emitting event
-        emit TaskResponded(referenceTaskIndex, task, msg.sender, mdReport);
+        emit TaskResponded(referenceTaskIndex, task, msg.sender, report);
     }
 
 }
