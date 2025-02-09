@@ -1,4 +1,5 @@
 # EigenLayer AVS Operator & Transaction Analysis Agent
+# This repo uses the [Hello World AVS](https://github.com/Layr-Labs/hello-world-avs/tree/master) template
 
 This project is an agent built for the Agentic Ethereum Hackathon under EigenLayer AVS. The agent:
 
@@ -40,8 +41,6 @@ This project is an agent built for the Agentic Ethereum Hackathon under EigenLay
   - `OPEN_AI_KEY` — Your OpenAI API key
 
 ## Installation
-
-This repo uses the [Hello World AVS](https://github.com/Layr-Labs/hello-world-avs/tree/master) template
 
 1. **Clone the Repository:**
 
